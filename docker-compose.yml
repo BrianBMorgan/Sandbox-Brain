@@ -1,0 +1,75 @@
+services:
+  gitnexus-mcp:
+    image: ghcr.io/brianbmorgan/sandbox-brain:latest
+    container_name: gitnexus-mcp
+    environment:
+      - PORT=8010
+      - INTERNAL_PORT=38011
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - NODE_ENV=production
+      - PROTOCOL=SHTTP
+      - ENABLE_HTTPS=false
+      - HTTP_VERSION_MODE=auto
+      - DATA_DIR=/data
+      # mcp-proxy session model. Stateful by default — one stdio child per
+      # Mcp-Session-Id, reused across requests. Sessions persist until the
+      # client explicitly closes them (no server-side TTL). Set to "true" only
+      # if full per-request isolation is required (memory-hostile).
+      - MCP_PROXY_STATELESS=false
+      # Cap virtual memory of each GitNexus stdio child via prlimit --as
+      # (MiB; 0 disables). KEEP AT 0 unless you know what you are doing:
+      # LadybugDB (the embedded graph backend) mmaps a ~16 GiB virtual
+      # address space at startup. Any cap below 16384 will fail with
+      # "Buffer manager exception: Mmap for size 17179869184 failed" and
+      # every DB-backed tool (query, cypher, context, route_map, impact,
+      # rename, shape_check, api_impact, detect_changes) will return
+      # "LadybugDB unavailable". Resident memory stays low — only the
+      # virtual reservation is huge.
+      - GITNEXUS_MAX_MEM_MB=0
+      # HAProxy concurrency caps (0 disables)
+      - HAPROXY_FRONTEND_MAXCONN=64
+      - HAPROXY_SERVER_MAXCONN=16
+      # Analysis features
+      - ANALYZE_SKILLS=true
+      - ANALYZE_EMBEDDINGS=true
+      # - ANALYZE_FORCE=false
+      # - ANALYZE_SKIP_GIT=false
+      # - ANALYZE_VERBOSE=false
+      # Web UI
+      # - ENABLE_WEB_UI=true
+      # Wiki generation
+      # - WIKI_ENABLED=false
+      # Optional: require Bearer token auth at HAProxy layer
+      # - API_KEY=replace-with-strong-secret
+      # Optional: CORS origins (comma-separated, or * for all)
+      # - CORS=*
+    ports:
+      - "8010:8010"
+    volumes:
+      # Mount your repository directories for code analysis.
+      # Each subdirectory becomes an indexable repository.
+      #
+      # IMPORTANT: drop the :ro flag if you enable ANALYZE_EMBEDDINGS or
+      # ANALYZE_SKILLS. Embeddings write to <repo>/.gitnexus/lbug
+      # (LadybugDB); skills write .claude/, CLAUDE.md, AGENTS.md.
+      # A :ro mount will cause both features to fail silently or log
+      # "Read-only file system" errors.
+      - /path/to/your/repos:/data
+      # Example: mount individual repos (keep :ro only if you have NEITHER
+      # ANALYZE_EMBEDDINGS=true NOR ANALYZE_SKILLS=true)
+      # - /home/user/my-project:/data/my-project
+      # - /home/user/another-repo:/data/another-repo
+      # Persistent storage for GitNexus registry (repo metadata)
+      - gitnexus-registry:/home/node/.gitnexus
+      # Persistent cache for HuggingFace models, ONNX runtime, etc.
+      # Prevents re-downloading embedding models on every container restart
+      - gitnexus-cache:/home/node/.cache
+    restart: unless-stopped
+
+volumes:
+  gitnexus-registry:
+    driver: local
+  gitnexus-cache:
+    driver: local

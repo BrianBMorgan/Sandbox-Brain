@@ -1,0 +1,48 @@
+GNU GENERAL PUBLIC LICENSE
+Version 3, 29 June 2007
+
+Copyright (c) 2025 Mohammad Mekayel Anik (mekayel.anik@gmail.com)
+
+Project: Unofficial Docker-compatible container image of GitNexus MCP
+GitHub:  https://github.com/MekayelAnik/GitNexus-docker
+Docker:  https://hub.docker.com/r/mekayelanik/gitnexus-mcp
+
+-------------------------------------------------------------------------------
+IMPORTANT: UPSTREAM LICENSE RESTRICTIONS
+-------------------------------------------------------------------------------
+The upstream GitNexus application is licensed under the PolyForm Noncommercial 
+License 1.0.0, which permits noncommercial use only. Commercial use of 
+GitNexus requires an enterprise license from Akon Labs.
+
+Required Notice: Copyright Abhigyan Patwari (https://github.com/abhigyanpatwari/GitNexus)
+Upstream License: https://github.com/abhigyanpatwari/GitNexus/blob/main/LICENSE
+Upstream GitHub:  https://github.com/abhigyanpatwari/GitNexus
+NPM Package:      https://www.npmjs.com/package/gitnexus
+
+This Docker image license (GPLv3) applies ONLY to the Docker packaging, 
+configuration scripts, CI/CD workflows, and documentation created by 
+Mohammad Mekayel Anik. It does NOT change the upstream GitNexus license terms. 
+Users must comply with both this license and the upstream GitNexus license.
+-------------------------------------------------------------------------------
+
+TERMS AND CONDITIONS
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+Full License Text:
+
+[The full 10,000+ word text of the GPLv3 is usually omitted in 
+the header of source files, but for a standalone LICENSE.txt, 
+it is standard practice to include the full text found at 
+https://www.gnu.org/licenses/gpl-3.0.txt below this line.]
