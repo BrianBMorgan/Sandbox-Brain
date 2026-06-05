@@ -28,7 +28,7 @@ jobs:
     name: Refresh all repos in the brain
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run refreshbrain.sh
         env:
           BRAIN_API_KEY: ${{ secrets.BRAIN_API_KEY }}
