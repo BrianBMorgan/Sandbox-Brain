@@ -15,6 +15,13 @@ set -uo pipefail
 
 BRAIN="https://sandbox-brain.onrender.com"
 
+# Bearer auth for the brain HAProxy API_KEY gate. Token is env-only; never
+# hardcode it. Export BRAIN_API_KEY in the environment that runs this script.
+API_KEY="${BRAIN_API_KEY:-}"
+AUTH=()
+[ -n "$API_KEY" ] && AUTH=(-H "Authorization: Bearer $API_KEY")
+[ -z "$API_KEY" ] && echo "WARNING: BRAIN_API_KEY not set; brain now requires API_KEY (calls will 401)." >&2
+
 # Repos to keep indexed (HTTPS git URLs). Add/remove freely.
 REPOS=(
   "https://github.com/Sandbox-Group-LLC/SYSOI.ai.git"
@@ -32,7 +39,7 @@ reponame(){ local u="${1##*/}"; printf '%s' "${u%.git}"; }   # URL -> "SYSOI.ai"
 # Prints "code|detail" on stdout; rc: 0=complete 2=failed 3=gateway 4=timeout
 run_analyze(){
   local url="$1" name="$2" resp http body jid st ph start el gw=0
-  resp=$(curl -sS -m 60 -w $'\n%{http_code}' -X POST "$BRAIN/api/analyze" \
+  resp=$(curl -sS "${AUTH[@]}" -m 60 -w $'\n%{http_code}' -X POST "$BRAIN/api/analyze" \
          -H 'Content-Type: application/json' -d "{\"url\":\"$url\"}" 2>/dev/null)
   http=$(printf '%s' "$resp" | tail -n1); body=$(printf '%s' "$resp" | sed '$d')
   jid=$(printf '%s' "$body" | grep -oE '"(jobId|id)"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*:"([^"]*)"/\1/')
@@ -41,7 +48,7 @@ run_analyze(){
   while true; do
     el=$(( $(date +%s) - start ))
     [ "$el" -ge "$MAX_WAIT" ] && { printf 'timeout|>%ss without finishing (likely OOM)' "$MAX_WAIT"; return 4; }
-    resp=$(curl -sS -m 30 -w $'\n%{http_code}' "$BRAIN/api/analyze/$jid" 2>/dev/null)
+    resp=$(curl -sS "${AUTH[@]}" -m 30 -w $'\n%{http_code}' "$BRAIN/api/analyze/$jid" 2>/dev/null)
     http=$(printf '%s' "$resp" | tail -n1); body=$(printf '%s' "$resp" | sed '$d')
     case "$http" in
       502|503|504) gw=$((gw+1)); [ "$gw" -ge 3 ] && { printf 'gateway|HTTP %s x%s (brain down/OOM)' "$http" "$gw"; return 3; }; sleep "$POLL"; continue;;
@@ -64,13 +71,13 @@ ok=true; declare -a REPORT
 for url in "${REPOS[@]}"; do
   name=$(reponame "$url"); act="refreshed"
   if $ALWAYS_FRESH; then
-    curl -sS -m 30 -X DELETE "$BRAIN/api/repo?repo=$name" >/dev/null 2>&1; act="rebuilt fresh"
+    curl -sS "${AUTH[@]}" -m 30 -X DELETE "$BRAIN/api/repo?repo=$name" >/dev/null 2>&1; act="rebuilt fresh"
   fi
   res=$(run_analyze "$url" "$name"); rc=$?
   # Self-heal: a git pull/fetch/checkout failure means the on-disk clone is wedged.
   if [ "$rc" -eq 2 ] && printf '%s' "$res" | grep -qiE 'git (pull|fetch|checkout|merge)'; then
     echo "    [$name] pull wedge detected -> deleting clone + re-cloning"
-    curl -sS -m 30 -X DELETE "$BRAIN/api/repo?repo=$name" >/dev/null 2>&1
+    curl -sS "${AUTH[@]}" -m 30 -X DELETE "$BRAIN/api/repo?repo=$name" >/dev/null 2>&1
     res=$(run_analyze "$url" "$name"); rc=$?; act="HEALED (re-cloned)"
   fi
   if [ "$rc" -eq 0 ]; then REPORT+=("OK   | $name | $act | ${res#*|}")
@@ -79,9 +86,9 @@ done
 
 echo; echo "=== per-repo result ==="; printf '%s\n' "${REPORT[@]}"
 echo; echo "=== brain state (stats + persistence path) ==="
-curl -sS -m 30 "$BRAIN/api/repos" 2>/dev/null | jq -r '.[] |
+curl -sS "${AUTH[@]}" -m 30 "$BRAIN/api/repos" 2>/dev/null | jq -r '.[] |
   "\(.name)  [\(.path)]\n  files=\(.stats.files) nodes=\(.stats.nodes) edges=\(.stats.edges) comm=\(.stats.communities) proc=\(.stats.processes) commit=\(.lastCommit[0:10]) indexed=\(.indexedAt)"' 2>/dev/null \
-  || curl -sS -m 30 "$BRAIN/api/repos" 2>/dev/null
+  || curl -sS "${AUTH[@]}" -m 30 "$BRAIN/api/repos" 2>/dev/null
 echo
 if $ok; then
   echo "RESULT: all repos refreshed OK"; exit 0
