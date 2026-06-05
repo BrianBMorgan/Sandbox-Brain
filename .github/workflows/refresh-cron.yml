@@ -1,0 +1,40 @@
+name: Brain Nightly Refresh
+
+# Belt-and-suspenders sweep: re-index every repo in scripts/refreshbrain.sh into
+# the shared GitNexus brain on a schedule, so the graph stays fresh even for
+# changes that don't come through a repo's per-push brain-refresh workflow
+# (and so a wedged on-disk clone gets healed). The per-repo push workflows keep
+# things fresh on merge; this is the nightly catch-all + heal.
+#
+# NOTE: schedule triggers only fire from the default branch (main), so this cron
+# goes live once this PR merges. Use "Run workflow" (workflow_dispatch) to test
+# it immediately after merge.
+
+on:
+  schedule:
+    - cron: "0 8 * * *"   # 08:00 UTC nightly (~1am PT / 4am ET) — off-peak
+  workflow_dispatch: {}
+
+# Never let two refreshes overlap (the brain is memory-bound); let a running one finish.
+concurrency:
+  group: brain-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    name: Refresh all repos in the brain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run refreshbrain.sh
+        env:
+          BRAIN_API_KEY: ${{ secrets.BRAIN_API_KEY }}
+        run: |
+          if [ -z "${BRAIN_API_KEY:-}" ]; then
+            echo "::error::BRAIN_API_KEY secret not set on this repo — refresh would 401. Add it in Settings → Secrets."
+            exit 1
+          fi
+          bash scripts/refreshbrain.sh
