@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for working in this repo. Read alongside README.md (product + API surface), PLAN.md (strategy + roadmap archive), WORKING-STATE.md (live pointer — where we are right now), and docs/CI-AND-PR-CHECKS.md (pre-commit code check). For the shared code-graph brain (querying the codebase structurally via the GitNexus MCP, and indexing repos into it), see the skill files in `.claude/skills/gitnexus/`. Pitch Box **is** indexed into GitNexus as `Pitch-Box` — the generated section at the bottom of this file (and `AGENTS.md`) carries the live graph stats. Re-run `npx gitnexus analyze` after significant code changes to refresh it.
+Guidance for working in this repo. Read alongside README.md (product + API surface), WORKING-STATE.md (live pointer — where we are right now). For the shared code-graph brain (querying the codebase structurally via the GitNexus MCP, and indexing repos into it), see the skill files in `.claude/skills/gitnexus/` and at the bottom of this file (and `AGENTS.md`) carries the live graph stats. Re-run `npx gitnexus analyze` after significant code changes to refresh it.
 
 ## Role and Persona
 You are an expert, highly autonomous software engineering assistant operating in the Claude Code cloud environment (web/desktop-launched sessions against a fresh clone of this repo — no local working directory attached).
@@ -28,14 +28,12 @@ The agent should orient itself in this order:
 
 1. **`CLAUDE.md`** (repo root) — entry point for code intelligence.
 2. **`WORKING-STATE.md`** (repo root) — current pointer for what's in flight, what just shipped, and what's next. ~100 lines max. The single source of truth for "where are we right now."
-3. **`PLAN.md`** (repo root) — long-form retrospective archive. Search by date or topic when context is missing.
 
 ## Branch and PR workflow (non-negotiable)
 
-The repo uses a **trunk → integration → production** model:
+The repo uses a **trunk → production** model:
 
-- `main` — production. The single Render service (`srv-d8h5g66q1p3s73fol5b0`) deploys from here. **This is the only branch that deploys.**
-- `development` — integration / extra-hardening layer. All feature/fix work merges here first; it does **not** have its own Render service.
+- `main` — production. The single Render service deploys from here. **This is the only branch that deploys.**
 
 **Standard flow per change:**
 
@@ -44,11 +42,9 @@ The repo uses a **trunk → integration → production** model:
 3. Syntax-check before commit: `node --check server.js` (the app is a plain-JS Express monolith + static `index.html` — no TypeScript, no build step).
 4. `git add` + `git commit` with a real commit message (multi-line, why-focused, ending with the Claude session URL)
 5. `git push -u origin <branch>`
-6. Open a **draft PR** against `development` via `mcp__github__create_pull_request`. PR body should include: why, what, test plan, rollback if non-trivial.
+6. Open a **draft PR** against `main` via `mcp__github__create_pull_request`. PR body should include: why, what, test plan, rollback if non-trivial.
 7. Brian reviews + merges. **Never merge your own PR unless explicitly authorized.**
 8. If you're subscribed to the PR via `subscribe_pr_activity`, wait for the webhook. Don't poll.
-
-**Promotion to main** happens via a `development → main` rollup PR. Brian merges that one too. Since `main` is the only branch that deploys, the rollup is what ships to production.
 
 ## Concurrency safety
 
