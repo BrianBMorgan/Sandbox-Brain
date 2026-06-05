@@ -88,11 +88,10 @@ Brian works direct, candid, with a sense of humor. The agent should:
 
 ## End of session
 
-Append the session's net changes to `PLAN.md` AND update `WORKING-STATE.md`. The first is archive; the second is the live pointer. Both have to be touched or the next session loses context.
+Append the session's net changes to `WORKING-STATE.md`. The first is archive; the second is the live pointer. Both have to be touched or the next session loses context.
 
 If significant code work happened (a feature shipped, an architecture changed), also re-run `npx gitnexus@latest analyze` and commit the refreshed `CLAUDE.md` if the graph stats moved meaningfully.
 
-<!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **Pitch-Box** (176 symbols, 174 relationships, 0 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
