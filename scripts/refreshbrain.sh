@@ -46,9 +46,11 @@ reponame(){ local u="${1##*/}"; printf '%s' "${u%.git}"; }   # URL -> "SYSOI.ai"
 # Analyze one repo and wait for a terminal state.
 # Prints "code|detail" on stdout; rc: 0=complete 2=failed 3=gateway 4=timeout
 run_analyze(){
-  local url="$1" name="$2" resp http body jid st ph start el gw=0
+  local url="$1" name="$2" resp http body jid st ph start el gw=0 payload
+  # Build JSON with jq so a URL with special chars can't break the payload.
+  payload=$(jq -n --arg url "$url" '{url: $url, embeddings: true}')
   resp=$(curl -sS "${AUTH[@]}" -m 60 -w $'\n%{http_code}' -X POST "$BRAIN/api/analyze" \
-         -H 'Content-Type: application/json' -d "{\"url\":\"$url\",\"embeddings\":true}" 2>/dev/null)
+         -H 'Content-Type: application/json' -d "$payload" 2>/dev/null)
   http=$(printf '%s' "$resp" | tail -n1); body=$(printf '%s' "$resp" | sed '$d')
   jid=$(printf '%s' "$body" | grep -oE '"(jobId|id)"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*:"([^"]*)"/\1/')
   [ -z "$jid" ] && { printf 'failed|POST returned no jobId (HTTP %s)' "$http"; return 2; }
@@ -95,7 +97,7 @@ done
 echo; echo "=== per-repo result ==="; printf '%s\n' "${REPORT[@]}"
 echo; echo "=== brain state (stats + persistence path) ==="
 curl -sS "${AUTH[@]}" -m 30 "$BRAIN/api/repos" 2>/dev/null | jq -r '.[] |
-  "\(.name)  [\(.path)]\n  files=\(.stats.files) nodes=\(.stats.nodes) edges=\(.stats.edges) comm=\(.stats.communities) proc=\(.stats.processes) emb=\(.stats.embeddings) commit=\(.lastCommit[0:10]) indexed=\(.indexedAt)"' 2>/dev/null \
+  "\(.name)  [\(.path)]\n  files=\(.stats.files) nodes=\(.stats.nodes) edges=\(.stats.edges) comm=\(.stats.communities) proc=\(.stats.processes) emb=\(.stats.embeddings // 0) commit=\(.lastCommit[0:10]) indexed=\(.indexedAt)"' 2>/dev/null \
   || curl -sS "${AUTH[@]}" -m 30 "$BRAIN/api/repos" 2>/dev/null
 echo
 if $ok; then
