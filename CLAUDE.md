@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for working in this repo — the **Sandbox Brain**. It is a self-hosted, **fully-pinned** fork of the [`mekayelanik/gitnexus-mcp`](https://github.com/MekayelAnik/GitNexus-docker) Docker recipe that packages [GitNexus](https://github.com/abhigyanpatwari/GitNexus) (a code-intelligence MCP server) behind HAProxy + an `mcp-proxy` stdio↔HTTP bridge, and ships it as one image to `ghcr.io/brianbmorgan/sandbox-brain`, deployed on Render at `https://sandbox-brain.onrender.com`.
+Guidance for working in this repo — the **Sandbox Brain**. It is a self-hosted, **fully-pinned** fork of the [`mekayelanik/gitnexus-mcp`](https://github.com/MekayelAnik/GitNexus-docker) Docker recipe that packages [GitNexus](https://github.com/abhigyanpatwari/GitNexus) (a code-intelligence MCP server) behind HAProxy, and ships it as one image to `ghcr.io/brianbmorgan/sandbox-brain`, deployed on Render at `https://sandbox-brain.onrender.com`.
 
 This repo has **no application source** — no `server.js`, no JS app, no build step of its own. It is a Docker **build recipe** + shell tooling. Read alongside **README.md** (what changed vs upstream, build + deploy), **PINS.md** (every pinned dependency + how it was resolved), **docker-compose.yml** (the runtime env-var surface), and **CERTIFICATE_SETUP_GUIDE.md** (TLS).
 
@@ -17,7 +17,7 @@ Use Exact Language: Prefer hard numbers and specific facts (digests, versions, p
 This repo is **shell + Docker + YAML**, not an app. Hold to its conventions:
 - The Dockerfile is **generated, never committed** — `DockerfileModifier.sh` heredoc-emits `Dockerfile.gitnexus-mcp` from `build_data/` (falling back to the pinned values in the script). `build_data/` and the generated Dockerfile are git-ignored build artifacts.
 - Keep everything **pinned**. No floating tags, no `@latest`, no auto-tracking of upstream. Every dependency is a digest / version / commit pin (see PINS.md). Bumping one is a deliberate, reviewable edit.
-- This fork changes only build/distribution plumbing (pinning + GHCR-only CI). It does **not** modify the GitNexus app, its entrypoint, HAProxy config, or healthcheck — preserve upstream behavior.
+- This fork changes only build/distribution plumbing (pinning + GHCR-only CI) **plus a build-time embedding-model bake** (see PINS.md "Embedding model"). It does **not** modify the GitNexus app, its entrypoint, HAProxy config, or healthcheck — preserve upstream behavior.
 
 ## Bootstrap (every session)
 1. **`CLAUDE.md`** (this file) — orientation.
@@ -26,24 +26,39 @@ This repo is **shell + Docker + YAML**, not an app. Hold to its conventions:
 
 ## What the Brain does (runtime)
 - Holds a **persistent, multi-repo code-graph index** on a Render disk at `/data` (registry under `~/.gitnexus`, per-repo clones under `/data/.gitnexus/repos/<name>`).
-- Exposes a REST API (HAProxy → `mcp-proxy` → GitNexus):
-  - `POST /api/analyze {"url":"<git-url>"}` → `{ jobId }` — clones/pulls the repo **server-side**, then indexes.
+- **Request routing (HAProxy fronts everything on the service port):**
+  - `/api/*`  → `gitnexus serve` (the Node API server; it also mounts the MCP server in-process at `/api/mcp` — see "Consuming the brain" below).
+  - `/mcp`    → the `mcp-proxy` stdio↔HTTP bridge. **Currently returns 404** — the live MCP endpoint is `/api/mcp`, not `/mcp`. Tracked in issue #7 (fix or remove mcp-proxy).
+  - `/` + `/assets` → the static web UI (`serve`).
+- **REST API** (HAProxy `/api/*` → `gitnexus serve`):
+  - `POST /api/analyze {"url":"<git-url>", "embeddings":true}` → `{ jobId }` — clones/pulls the repo **server-side**, then indexes. **`"embeddings":true` is required for semantic search.** gitnexus reads that flag from the request body **only**; the `ANALYZE_EMBEDDINGS` env var is a **no-op** for this path (it appears nowhere in the gitnexus package). Without the flag, indexing succeeds but the repo lands at `embeddings:0` and semantic search is dead. `refreshbrain.sh` sends the flag on every run.
   - `GET /api/analyze/{jobId}` → `{ status, phase, … }` — poll to a terminal `complete` / `failed`. (Poll the REST job API, **not** the SSE `/progress` endpoint — Render's edge kills it.)
-  - `GET /api/repos` → indexed repos + stats (readable without auth).
+  - `GET /api/repos` → indexed repos + stats including `embeddings` count (readable without auth — a quick `embeddings:0` check).
+  - `POST /api/search {"query":..., "mode":"hybrid|semantic|bm25"}` → over a repo (`?repo=<name>`). **Caveat:** the *serve* process does **not** lazy-load the embedder, so `mode:semantic` returns empty and `hybrid` silently falls back to FTS/keyword. True semantic-by-meaning over REST needs HTTP-embedding mode (set `GITNEXUS_EMBEDDING_URL` + `GITNEXUS_EMBEDDING_MODEL` to an OpenAI-compatible endpoint serving the **same** `snowflake-arctic-embed-xs` model). Semantic works out of the box via the **MCP** path below, which does lazy-load the baked model.
   - `DELETE /api/repo?repo={name}` → drop a repo's clone + index.
-- **Auth:** mutating routes (`/api/analyze`, `DELETE /api/repo`) are gated by an `API_KEY` Bearer token (the `API_KEY` env var on the service). Clients send `Authorization: Bearer $BRAIN_API_KEY` with the same value. If a session can't reach the authed routes, that's expected — the token is env-only, never in the repo.
+- **Auth:** mutating routes (`/api/analyze`, `DELETE /api/repo`) and the MCP endpoint are gated by an `API_KEY` Bearer token (the `API_KEY` env var on the service). Clients send `Authorization: Bearer $BRAIN_API_KEY` with the same value. `GET /api/repos` / `/api/health` are open. If a session can't reach the authed routes, that's expected — the token is env-only, never in the repo.
 - **Indexed repos** = the `REPOS` list in `scripts/refreshbrain.sh`: `Sandbox-Group-LLC/SYSOI.ai`, `Forge-Intelligence`, `Pitch-Box`. This repo is **not** indexed into the brain — it's the host.
 - **Memory (load-bearing):** LadybugDB (the embedded graph) mmaps a ~16 GiB **virtual** address space at startup. `GITNEXUS_MAX_MEM_MB` MUST stay `0` — any cap below `16384` fails with `Mmap for size 17179869184 failed` and every DB-backed tool returns "LadybugDB unavailable". Resident memory stays low; only the reservation is huge. The brain is still memory-bound — on `502/503/504` or OOM, **do not hammer-retry.**
 
+## Consuming the brain (MCP)
+This is how Claude sessions, agents, and any future chatbot should query the brain.
+- **Endpoint:** `https://sandbox-brain.onrender.com/api/mcp` — StreamableHTTP, in-process inside `gitnexus serve` (the boot log says `MCP HTTP endpoints mounted at /api/mcp`).
+- **Auth:** `Authorization: Bearer $BRAIN_API_KEY`.
+- **Tools:** `query` (semantic + graph retrieval — the main one), `cypher`, `context`, `impact`, `route_map`, `detect_changes`, `rename`, and more (`tools/list` for the full set). Call `query` with `{ "repo": "<name>", "query": "<natural-language>" }`.
+- **Semantic works here** because the MCP query path lazy-loads the baked embedding model (cache hit, no egress) to embed the query at request time — unlike the REST `/api/search` path. Verified: a meaning-based query with none of the doc's literal words surfaces the right files.
+- **Do not use `/mcp`** — that route (the mcp-proxy bridge) currently 404s; see issue #7. Point clients at `/api/mcp`.
+
 ## Keeping the brain fresh (two self-healing paths)
-1. **`scripts/refreshbrain.sh`** — batch sweep over `REPOS`. Run nightly by `.github/workflows/refresh-cron.yml` (08:00 UTC + manual `workflow_dispatch`), or by hand. Needs `BRAIN_API_KEY` exported in the environment.
+1. **`scripts/refreshbrain.sh`** — batch sweep over `REPOS`. Run nightly by `.github/workflows/refresh-cron.yml` (08:00 UTC + manual `workflow_dispatch`), or by hand. Needs `BRAIN_API_KEY` exported in the environment. Sends `embeddings:true` on every analyze (incremental — only new/changed symbols are embedded, so it's cheap on no-op runs).
 2. **Per-repo `brain-refresh.yml`** — lives in each indexed repo, fires on push to that repo's `main`, and re-indexes just that repo.
 
-**The wedge + self-heal (know this):** the persistent on-disk clone goes **dirty** because analysis writes into it (`ANALYZE_SKILLS` + `ANALYZE_EMBEDDINGS` → `.claude/`, `CLAUDE.md`, `AGENTS.md`, embeddings). A later `git pull` then fails (`git pull failed (exit code 1)`). Both refresh paths recover the same way: on a `git (pull|fetch|checkout|merge)` failure, **`DELETE /api/repo` then re-analyze fresh**. Never paper over a wedge by retrying the pull — delete + re-clone.
+**The wedge + self-heal (know this):** the persistent on-disk clone goes **dirty** because analysis writes generated artifacts into it (`.claude/`, `CLAUDE.md`, `AGENTS.md`, and embedding data). A later `git pull` then fails (`git pull failed (exit code 1)`). Both refresh paths recover the same way: on a `git (pull|fetch|checkout|merge)` failure, **`DELETE /api/repo` then re-analyze fresh**. Never paper over a wedge by retrying the pull — delete + re-clone.
 
 ## Build & pinning
 - Build is **manual only**: Actions → "Build and push gitnexus-mcp (GHCR)" (`build.yml`, `workflow_dispatch`). It writes `build_data/` from the pinned values, runs `DockerfileModifier.sh`, then `docker buildx build --platform linux/amd64 --push` to `ghcr.io/brianbmorgan/sandbox-brain:<gitnexus_version>` (+ `:latest`). No schedule, no Docker Hub, no multi-arch, no Renovate.
+- **The build bakes the embedding model into the image** (`DockerfileModifier.sh`): it analyzes a throwaway real-code repo with `gitnexus analyze --embeddings` so the model downloads into `/home/node/.cache/huggingface` (the exact `HF_HOME` the entrypoint exports), and a `find … '*.onnx' | grep -q .` guard **fails the build** if the model didn't land. This is what lets the egress-locked Render service produce embeddings at all. Full why in PINS.md "Embedding model".
 - **A pin bump is a deliberate 3-place edit** — PINS.md (value + date + source) + the fallback in `DockerfileModifier.sh` + the `env:` value / input default in `build.yml` — then re-run the workflow. A one-off gitnexus version can instead be passed as the `gitnexus_version` dispatch input without editing files. See README "How to bump a pin safely."
+- **Deploy on Render is image-pinned, not tag-tracking.** The service can be pinned to a specific image digest with `autoDeploy:no`, so pushing a new `:tag` does **not** redeploy by itself — you must trigger a deploy pointing at the new image. (This bit us once: redeploys kept running an old digest. If "deploy does nothing," check the service's pinned image vs the tag you just pushed.)
 
 ## Branch and PR workflow (non-negotiable)
 - **`main`-only.** There is no `development` branch. Render deploys the GHCR image; `main` is the source of truth for the recipe.
@@ -52,9 +67,10 @@ This repo is **shell + Docker + YAML**, not an app. Hold to its conventions:
 - **For the shell scripts** (`refreshbrain.sh`, etc.) edit byte-faithfully: reconstruct the original locally, confirm `git hash-object` matches the file's blob SHA **before** applying the surgical change, then `bash -n` (and parse any YAML) before pushing. A broken self-healing script is worse than none.
 
 ## Render operations
-- The brain is one Render service: image `ghcr.io/brianbmorgan/sandbox-brain:<tag>` (amd64), with a **persistent disk for `/data`** plus the HF/ONNX model cache.
+- The brain is one Render service: image `ghcr.io/brianbmorgan/sandbox-brain:<tag>` (amd64), with a **persistent disk mounted at `/data`** for the code-graph index. The embedding model is **baked into the image** (not the disk), so a fresh deploy already has it.
 - **Secrets live in the service's own environment** — chiefly `API_KEY` (the brain's auth gate; clients use the same value as `BRAIN_API_KEY`). No linked Environment Group.
 - **Never use Render's bulk env-var `PUT`** — it REPLACES ALL VARS. Use the dashboard or a single-key PATCH.
+- **Render REST API is available** to a session (Bearer `RENDER_API_KEY` from the cloud env) for inspecting the service, deploys, env vars, and logs — useful when "is it even deployed?" needs a definitive answer rather than dashboard guesswork. Service id: `srv-d8dgc268bjmc73a5lup0`.
 - Runtime config is the env surface in `docker-compose.yml` (ports, transport, `ANALYZE_*`, `GITNEXUS_MAX_MEM_MB`, HAProxy caps, `API_KEY`). Keep repo mounts **writable** — a `:ro` mount breaks skills/embeddings, which write into the clone.
 
 ## PR activity subscriptions

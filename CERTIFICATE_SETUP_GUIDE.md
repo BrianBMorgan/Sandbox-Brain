@@ -2,6 +2,14 @@
 
 This guide walks you through everything step by step in plain language.
 
+> **Scope:** this is the **self-hosted** TLS path — running the image on your own
+> VPS with a private CA and HTTPS on the container. The production **Sandbox
+> Brain** runs on Render, where Render terminates TLS for you, so none of the
+> CA/cert steps below apply to that deploy. Use this guide only if you stand the
+> image up yourself (see `docker-compose.yml`). The image to run is this fork's
+> GHCR image — `ghcr.io/brianbmorgan/sandbox-brain:<tag>` — **not** the upstream
+> Docker Hub image (this fork is GHCR-only).
+
 You will set up:
 - A private Certificate Authority (CA) you control
 - A server certificate for your MCP host (`103.102.201.202`)
@@ -180,7 +188,7 @@ docker run -d \
   -e API_KEY=gnx_REPLACE_WITH_A_LONG_RANDOM_SECRET \
   -v /home/$USER/mcp-certs/103.102.201.202:/certs:ro \
   -v /home/$USER/repos:/data:rw \
-  mekayelanik/gitnexus-mcp:stable
+  ghcr.io/brianbmorgan/sandbox-brain:latest
 ```
 
 ### 3.2 Check runtime logs
@@ -246,8 +254,14 @@ Expected:
 ### 5.2 MCP endpoint to configure in clients
 
 ```text
-https://103.102.201.202:8010/mcp
+https://103.102.201.202:8010/api/mcp
 ```
+
+> This image serves the MCP endpoint over StreamableHTTP at **`/api/mcp`**
+> (in-process in `gitnexus serve`) — the verified working path on the Sandbox
+> Brain deploy. The separate `/mcp` route (the `mcp-proxy` bridge) may return
+> **404** depending on wiring (it does on the Render deploy — see issue #7), so
+> prefer `/api/mcp`. Clients send `Authorization: Bearer <API_KEY>`.
 
 ---
 
@@ -300,6 +314,13 @@ Fix:
 Fix:
 - reissue server certificate with correct SAN entries
 
+### Problem: MCP endpoint returns `404`
+
+- Using the `/mcp` proxy route instead of `/api/mcp`
+
+Fix:
+- point the client at `https://<host>:<port>/api/mcp` (see issue #7)
+
 ---
 
 ## Part 8: Rotation and Good Hygiene
@@ -321,7 +342,7 @@ On Host Server:
 On Client Machine:
 - [ ] `mcp-ca.crt` installed globally
 - [ ] app restarted after trust installation
-- [ ] MCP URL uses `https://103.102.201.202:8010/mcp`
+- [ ] MCP URL uses `https://103.102.201.202:8010/api/mcp`
 - [ ] correct Bearer token configured
 
 If all boxes are checked, your MCP connection should be secure and stable.

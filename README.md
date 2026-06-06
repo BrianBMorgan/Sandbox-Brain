@@ -29,6 +29,7 @@ same as upstream.
 | `mcp-proxy` | `pip install mcp-proxy` (floating) | pinned `mcp-proxy==X.Y.Z` |
 | `serve` | `serve@latest` | pinned `serve@X.Y.Z` |
 | Frontend (web UI) | `git clone --depth 1 … main` (moving target) | pinned to a fixed upstream **commit** |
+| Embedding model | downloaded from HuggingFace at **runtime** (needs egress) | **baked into the image at build time** (egress-proof) — see [`PINS.md`](PINS.md) |
 | `gitnexus` | `gitnexus@$VERSION` | unchanged, but the fallback version is pinned |
 
 Everything else (entrypoint, HAProxy config/templating, healthcheck, GPU/CUDA
@@ -51,6 +52,7 @@ Resolved **2026-06-01**. Full provenance (resolution commands + sources) is in
 | `mcp-proxy` (PyPI) | `mcp-proxy==0.12.0` |
 | `serve` (npm) | `serve@14.2.6` |
 | GitNexus frontend (git) | `4f7697c43b1aff0662eae528fc8a1bc01db6a284` |
+| Embedding model (HF, baked) | `Snowflake/snowflake-arctic-embed-xs` (384-dim) |
 
 ---
 
@@ -61,6 +63,14 @@ The Dockerfile is **generated**, not committed. `DockerfileModifier.sh` reads
 to the pinned values above) and heredoc-emits `Dockerfile.gitnexus-mcp`. The CI
 workflow writes those `build_data` files from the pinned values, runs the
 generator, then `docker buildx build … --push`.
+
+The generated Dockerfile also **bakes the embedding model into the image**: it
+analyzes a tiny throwaway real-code repo with `gitnexus analyze --embeddings`,
+which pulls `Snowflake/snowflake-arctic-embed-xs` into
+`/home/node/.cache/huggingface` (the exact `HF_HOME` the entrypoint exports), and
+a `find … '*.onnx' | grep -q .` guard **fails the build** if the model didn't
+land. This is what lets the egress-locked Render service generate embeddings with
+zero runtime network. Full rationale in [`PINS.md`](PINS.md) → "Embedding model".
 
 ### Build via GitHub Actions (the supported path)
 
@@ -133,6 +143,41 @@ runtime configuration (ports, transport, auth, analysis, wiki, GPU) is via the
 environment variables consumed by `resources/entrypoint.sh` (unchanged from
 upstream).
 
+> **Render deploy gotcha:** the Sandbox Brain service can be **digest-pinned**
+> with `autoDeploy:no`, so pushing a new `:tag` to GHCR does **not** redeploy by
+> itself — you have to trigger a deploy that points at the new image. If a
+> redeploy "does nothing," check the service's pinned image against the tag you
+> just pushed.
+
+---
+
+## Using the brain (runtime API + MCP)
+
+Once deployed, clients reach the brain at `https://sandbox-brain.onrender.com`.
+Mutating routes and the MCP endpoint require `Authorization: Bearer <API_KEY>`;
+`GET /api/repos` and `/api/health` are open.
+
+- **MCP (recommended for agents / a future chatbot):** `POST /api/mcp` —
+  StreamableHTTP, served in-process by `gitnexus serve`. Send the Bearer token,
+  then call the **`query`** tool with `{ "repo": "<name>", "query": "<text>" }`.
+  Semantic-by-meaning search works here because the MCP path lazy-loads the baked
+  embedding model.
+  > HAProxy also routes `/mcp` to the bundled `mcp-proxy` bridge, but that path
+  > currently returns **404** — use `/api/mcp`. Tracked in **issue #7**.
+- **Indexing:** `POST /api/analyze {"url":"<git-url>","embeddings":true}`, then
+  poll `GET /api/analyze/{jobId}` to `complete`/`failed`. `"embeddings":true` is
+  **required** — without it the repo indexes but with `embeddings:0` and no
+  semantic search. `scripts/refreshbrain.sh` (nightly cron) keeps the configured
+  repos indexed and embedded.
+- **Inspect:** `GET /api/repos` → each repo's stats, including the `embeddings`
+  count (a quick way to confirm semantic data is present).
+
+> Note: the REST `POST /api/search` endpoint's `semantic` mode returns empty and
+> `hybrid` falls back to keyword (FTS) — the *serve* process doesn't lazy-load
+> the embedder. For semantic retrieval use the MCP `query` tool, or run an
+> external OpenAI-compatible embedding endpoint (same `snowflake-arctic-embed-xs`
+> model) via `GITNEXUS_EMBEDDING_URL`/`_MODEL`.
+
 ---
 
 ## Licensing & attribution
@@ -155,9 +200,9 @@ This fork **preserves all upstream licensing and attribution** — see
   > Required Notice: Copyright Abhigyan Patwari
   > (https://github.com/abhigyanpatwari/GitNexus)
 
-This fork changes only the build/distribution plumbing (pinning + GHCR-only CI).
-It does not modify the GitNexus application or its license, and it does not
-relicense MekayelAnik's recipe.
+This fork changes only the build/distribution plumbing (pinning + GHCR-only CI)
+plus the build-time embedding-model bake. It does not modify the GitNexus
+application or its license, and it does not relicense MekayelAnik's recipe.
 
 ---
 
