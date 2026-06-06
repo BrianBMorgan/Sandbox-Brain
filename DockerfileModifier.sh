@@ -145,12 +145,13 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Embeddings use @huggingface/transformers (model Snowflake/snowflake-arctic-embed-xs,
 # 384-dim, fp32, ~90MB), which downloads from HuggingFace at RUNTIME into the HF cache.
 # A locked-down deploy (no egress) can't fetch it, so embeddings silently produce 0.
-# Fix: pre-warm the cache HERE (the build has network) by running gitnexus's own
-# embedding path once on a throwaway repo, with HF_HOME pointed at a baked location.
-# Runtime sets HF_HOME to the same path -> cache hit, zero network. The find|grep guard
-# FAILS the build if the model didn't actually land, so a broken bake can't ship silently.
-RUN mkdir -p /opt/hf-cache /tmp/warmup && cd /tmp/warmup && git init -q . && git config user.email build@local && git config user.name build && echo warmup > README.md && git add -A && git commit -qm init && HF_HOME=/opt/hf-cache gitnexus analyze --embeddings && rm -rf /tmp/warmup && find /opt/hf-cache -iname '*.onnx' | grep -q . && chown -R node:node /opt/hf-cache
-ENV HF_HOME=/opt/hf-cache
+# Fix: pre-warm the cache HERE (the build has network) by running gitnexus's own embedding
+# path on a tiny throwaway CODE repo. It MUST contain real symbols — a trivial file yields
+# 0 embeddings and gitnexus refuses to register it (that was the first failed build). Bake
+# into /home/node/.cache/huggingface — the exact HF_HOME the entrypoint exports at runtime —
+# so runtime gets a cache hit with zero network, and we DON'T touch the upstream entrypoint.
+# The find|grep guard FAILS the build if the model didn't land, so a broken bake can't ship.
+RUN mkdir -p /home/node/.cache/huggingface /tmp/warmup && cd /tmp/warmup && git init -q . && git config user.email build@local && git config user.name build && printf 'export function greet(n){return "hi "+n;}\nexport function add(a,b){return a+b;}\nexport class Warm{run(){return greet("x")+add(1,2);}}\n' > warmup.js && git add -A && git commit -qm init && HF_HOME=/home/node/.cache/huggingface gitnexus analyze --embeddings && rm -rf /tmp/warmup && find /home/node/.cache/huggingface -iname '*.onnx' | grep -q . && chown -R node:node /home/node/.cache/huggingface
 
 # Use an ARG for the default port
 ARG PORT=8010

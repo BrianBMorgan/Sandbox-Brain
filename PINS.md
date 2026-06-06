@@ -123,10 +123,12 @@ cache, and the locked-down Render service has no egress to fetch it (and no
 persistent cache), so embeddings silently produced `0`.
 
 **Fix — baked into the image at build time** (`DockerfileModifier.sh`): a
-throwaway repo is analyzed with `HF_HOME=/opt/hf-cache gitnexus analyze
---embeddings`, which downloads the model into `/opt/hf-cache`; `ENV
-HF_HOME=/opt/hf-cache` makes runtime reuse that baked cache with **zero
-network**. The baked revision is whatever HuggingFace `main` is for that model
-**at build time** (gitnexus doesn't pass a fixed revision). A `find …
--iname '*.onnx' | grep -q .` guard fails the build if the model didn't land, so
-a silent regression can't ship.
+throwaway repo is analyzed with `HF_HOME=/home/node/.cache/huggingface gitnexus
+analyze --embeddings`, which downloads the model into
+`/home/node/.cache/huggingface` — **the exact `HF_HOME` the upstream entrypoint
+already exports at runtime** (`resources/entrypoint.sh`). So the runtime reuses
+the baked cache with **zero network**, and the upstream entrypoint stays
+untouched (no `ENV HF_HOME` override needed). The baked revision is whatever
+HuggingFace `main` is for that model **at build time** (gitnexus doesn't pass a
+fixed revision). A `find … -iname '*.onnx' | grep -q .` guard fails the build if
+the model didn't land, so a silent regression can't ship.
