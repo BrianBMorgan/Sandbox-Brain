@@ -35,6 +35,7 @@ REPOS=(
   "https://github.com/Sandbox-Group-LLC/SYSOI.ai.git"
   "https://github.com/Sandbox-Group-LLC/Forge-Intelligence.git"
   "https://github.com/Sandbox-Group-LLC/Pitch-Box.git"
+  "https://github.com/Sandbox-Group-LLC/Sandbox-GTM.git"
 )
 
 ALWAYS_FRESH=false   # false = pull, heal only on failure (fast) | true = delete+clone every run (bulletproof)
