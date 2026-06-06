@@ -16,6 +16,7 @@ workflow default, then re-run the workflow). See `README.md`.
 | `mcp-proxy` (PyPI) | `mcp-proxy==0.12.0` | PyPI `https://pypi.org/pypi/mcp-proxy/json` → `.info.version` | 2026-06-01 |
 | `serve` (npm) | `serve@14.2.6` | npm registry `https://registry.npmjs.org/serve` → `.dist-tags.latest` | 2026-06-01 |
 | GitNexus frontend (git) | `4f7697c43b1aff0662eae528fc8a1bc01db6a284` | GitHub API `repos/abhigyanpatwari/GitNexus/commits/main` → `.sha` (HEAD of `main`) | 2026-06-01 |
+| Embedding model (HF, baked) | `Snowflake/snowflake-arctic-embed-xs` (384-dim, fp32, ~90MB) | gitnexus 1.6.5 `DEFAULT_EMBEDDING_CONFIG.modelId` (loaded via `@huggingface/transformers`) | 2026-06-06 |
 
 ## How each pin was resolved
 
@@ -101,3 +102,31 @@ The frontend-builder stage previously ran `git clone --depth 1 ... .` against
 `git checkout 4f7697c43b1aff0662eae528fc8a1bc01db6a284`, so the web UI is built
 from a fixed commit. Verified at this commit the repo root still contains both
 `gitnexus-shared/` and `gitnexus-web/` (the two packages the build compiles).
+
+### Embedding model (baked into the image)
+
+Confirmed from the pinned package's own source (`gitnexus@1.6.5`):
+
+```bash
+# node_modules/gitnexus/dist/core/embeddings/types.js
+#   DEFAULT_EMBEDDING_CONFIG.modelId = 'Snowflake/snowflake-arctic-embed-xs'
+#   dimensions: 384        # node_modules/gitnexus/dist/core/lbug/schema.js (GITNEXUS_EMBEDDING_DIMS default 384)
+# node_modules/gitnexus/dist/core/embeddings/embedder.js
+#   loaded via @huggingface/transformers: pipeline('feature-extraction', modelId, { dtype: 'fp32' })
+#   env.allowLocalModels = false  → model MUST come from the HF cache, not a loose dir
+```
+
+This is **not a separately versioned pin** — it's gitnexus's hardcoded default,
+so it only moves when `gitnexus` itself is bumped. It exists here to document the
+why: gitnexus downloads this model from HuggingFace **at runtime** into the HF
+cache, and the locked-down Render service has no egress to fetch it (and no
+persistent cache), so embeddings silently produced `0`.
+
+**Fix — baked into the image at build time** (`DockerfileModifier.sh`): a
+throwaway repo is analyzed with `HF_HOME=/opt/hf-cache gitnexus analyze
+--embeddings`, which downloads the model into `/opt/hf-cache`; `ENV
+HF_HOME=/opt/hf-cache` makes runtime reuse that baked cache with **zero
+network**. The baked revision is whatever HuggingFace `main` is for that model
+**at build time** (gitnexus doesn't pass a fixed revision). A `find …
+-iname '*.onnx' | grep -q .` guard fails the build if the model didn't land, so
+a silent regression can't ship.
