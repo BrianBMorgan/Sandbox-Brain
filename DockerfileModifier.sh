@@ -141,6 +141,17 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /usr/share/doc /usr/share/man /usr/share/info /usr/share/locale /usr/share/lintian /var/log/*.log
 
+# ── Bake the embedding model into the image (egress-proof) ──
+# Embeddings use @huggingface/transformers (model Snowflake/snowflake-arctic-embed-xs,
+# 384-dim, fp32, ~90MB), which downloads from HuggingFace at RUNTIME into the HF cache.
+# A locked-down deploy (no egress) can't fetch it, so embeddings silently produce 0.
+# Fix: pre-warm the cache HERE (the build has network) by running gitnexus's own
+# embedding path once on a throwaway repo, with HF_HOME pointed at a baked location.
+# Runtime sets HF_HOME to the same path -> cache hit, zero network. The find|grep guard
+# FAILS the build if the model didn't actually land, so a broken bake can't ship silently.
+RUN mkdir -p /opt/hf-cache /tmp/warmup && cd /tmp/warmup && git init -q . && git config user.email build@local && git config user.name build && echo warmup > README.md && git add -A && git commit -qm init && HF_HOME=/opt/hf-cache gitnexus analyze --embeddings && rm -rf /tmp/warmup && find /opt/hf-cache -iname '*.onnx' | grep -q . && chown -R node:node /opt/hf-cache
+ENV HF_HOME=/opt/hf-cache
+
 # Use an ARG for the default port
 ARG PORT=8010
 
