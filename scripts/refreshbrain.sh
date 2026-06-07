@@ -41,7 +41,12 @@ REPOS=(
 )
 
 ALWAYS_FRESH=false   # false = pull, heal only on failure (fast) | true = delete+clone every run (bulletproof)
-MAX_WAIT=300         # seconds to wait per repo before declaring it stuck/OOM
+MAX_WAIT=1200        # seconds to wait per repo. The persistent clone wedges most
+                     # runs (analysis dirties it), so the heal path re-clones and
+                     # re-embeds from scratch — a full embed of the big repos
+                     # (Sandbox-GTM ~8.5k, Sandbox-ERP ~5.7k) runs 8–10 min. 300s
+                     # used to time out mid-embed, abandoning a still-running job
+                     # and 409-poisoning every repo after it.
 POLL=5               # seconds between status polls
 
 reponame(){ local u="${1##*/}"; printf '%s' "${u%.git}"; }   # URL -> "SYSOI.ai"
@@ -49,12 +54,22 @@ reponame(){ local u="${1##*/}"; printf '%s' "${u%.git}"; }   # URL -> "SYSOI.ai"
 # Analyze one repo and wait for a terminal state.
 # Prints "code|detail" on stdout; rc: 0=complete 2=failed 3=gateway 4=timeout
 run_analyze(){
-  local url="$1" name="$2" resp http body jid st ph start el gw=0 payload
+  local url="$1" name="$2" resp http body jid st ph start el gw=0 payload pstart
   # Build JSON with jq so a URL with special chars can't break the payload.
   payload=$(jq -n --arg url "$url" '{url: $url, embeddings: true}')
-  resp=$(curl -sS "${AUTH[@]}" -m 60 -w $'\n%{http_code}' -X POST "$BRAIN/api/analyze" \
-         -H 'Content-Type: application/json' -d "$payload" 2>/dev/null)
-  http=$(printf '%s' "$resp" | tail -n1); body=$(printf '%s' "$resp" | sed '$d')
+  # The brain serializes analyze jobs: POSTing while another repo is still
+  # indexing returns 409. Back off and wait for the in-flight job to finish
+  # rather than failing (and cascading the failure to every later repo).
+  pstart=$(date +%s)
+  while true; do
+    resp=$(curl -sS "${AUTH[@]}" -m 60 -w $'\n%{http_code}' -X POST "$BRAIN/api/analyze" \
+           -H 'Content-Type: application/json' -d "$payload")
+    http=$(printf '%s' "$resp" | tail -n1); body=$(printf '%s' "$resp" | sed '$d')
+    [ "$http" != "409" ] && break
+    [ "$(( $(date +%s) - pstart ))" -ge "$MAX_WAIT" ] && { printf 'failed|brain busy (409) >%ss' "$MAX_WAIT"; return 2; }
+    printf '    [%s] brain busy (409) - waiting for the in-flight job...\n' "$name" >&2
+    sleep "$POLL"
+  done
   jid=$(printf '%s' "$body" | grep -oE '"(jobId|id)"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*:"([^"]*)"/\1/')
   [ -z "$jid" ] && { printf 'failed|POST returned no jobId (HTTP %s)' "$http"; return 2; }
   start=$(date +%s)

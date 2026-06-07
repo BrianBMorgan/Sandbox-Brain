@@ -141,6 +141,18 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /usr/share/doc /usr/share/man /usr/share/info /usr/share/locale /usr/share/lintian /var/log/*.log
 
+# ── Patch: keep the incremental git pull from wedging on gitnexus's own writes ──
+# gitnexus regenerates CLAUDE.md / AGENTS.md / .claude/ INTO each clone on every
+# analyze (the /api/analyze route exposes no skip flag — api.js only forwards
+# force/embeddings/dropEmbeddings to the worker), which dirties the working tree
+# so the next 'git pull --ff-only' (git-clone.js cloneOrPull) refuses to run —
+# forcing a full delete + re-clone + re-embed on every nightly refresh. Discard
+# that auto-generated dirt (reset --hard + clean -fd) before the pull so updates
+# stay INCREMENTAL. The graph + embeddings live under GITNEXUS_HOME, not the
+# clone, so the reset is safe. The grep guard FAILS the build if a gitnexus
+# version bump moved the pull line, so the un-patched wedge can never ship.
+RUN F=/usr/local/lib/node_modules/gitnexus/dist/server/git-clone.js && grep -qF "await runGit(['pull', '--ff-only'], safeTarget);" "\$F" && sed -i "s|await runGit(\['pull', '--ff-only'\], safeTarget);|await runGit(['reset', '--hard', 'HEAD'], safeTarget); await runGit(['clean', '-fd'], safeTarget); await runGit(['pull', '--ff-only'], safeTarget);|" "\$F" && grep -qF "['reset', '--hard', 'HEAD']" "\$F" && node --check "\$F" && echo "PATCHED git-clone.js: reset+clean before ff-only pull"
+
 # ── Bake the embedding model into the image (egress-proof) ──
 # Embeddings use @huggingface/transformers (model Snowflake/snowflake-arctic-embed-xs,
 # 384-dim, fp32, ~90MB), which downloads from HuggingFace at RUNTIME into the HF cache.
