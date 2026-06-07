@@ -30,6 +30,7 @@ same as upstream.
 | `serve` | `serve@latest` | pinned `serve@X.Y.Z` |
 | Frontend (web UI) | `git clone --depth 1 … main` (moving target) | pinned to a fixed upstream **commit** |
 | Embedding model | downloaded from HuggingFace at **runtime** (needs egress) | **baked into the image at build time** (egress-proof) — see [`PINS.md`](PINS.md) |
+| Clone refresh | `git pull --ff-only` — **wedges** on gitnexus's own generated files (`CLAUDE.md`/`AGENTS.md`/`.claude/`), forcing a full delete + re-clone + re-embed each run | **build-time patch** to `git-clone.js`: `git reset --hard` + `git clean -fd` before the pull, so refreshes stay **incremental** (guarded — the build fails if a version bump moves the pull line) |
 | `gitnexus` | `gitnexus@$VERSION` | unchanged, but the fallback version is pinned |
 
 Everything else (entrypoint, HAProxy config/templating, healthcheck, GPU/CUDA
