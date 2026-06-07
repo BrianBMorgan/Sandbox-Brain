@@ -67,7 +67,7 @@ run_analyze(){
     http=$(printf '%s' "$resp" | tail -n1); body=$(printf '%s' "$resp" | sed '$d')
     [ "$http" != "409" ] && break
     [ "$(( $(date +%s) - pstart ))" -ge "$MAX_WAIT" ] && { printf 'failed|brain busy (409) >%ss' "$MAX_WAIT"; return 2; }
-    printf '    [%s] brain busy (409) — waiting for the in-flight job…\n' "$name" >&2
+    printf '    [%s] brain busy (409) - waiting for the in-flight job...\n' "$name" >&2
     sleep "$POLL"
   done
   jid=$(printf '%s' "$body" | grep -oE '"(jobId|id)"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*:"([^"]*)"/\1/')
