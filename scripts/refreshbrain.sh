@@ -63,7 +63,7 @@ run_analyze(){
   pstart=$(date +%s)
   while true; do
     resp=$(curl -sS "${AUTH[@]}" -m 60 -w $'\n%{http_code}' -X POST "$BRAIN/api/analyze" \
-           -H 'Content-Type: application/json' -d "$payload" 2>/dev/null)
+           -H 'Content-Type: application/json' -d "$payload")
     http=$(printf '%s' "$resp" | tail -n1); body=$(printf '%s' "$resp" | sed '$d')
     [ "$http" != "409" ] && break
     [ "$(( $(date +%s) - pstart ))" -ge "$MAX_WAIT" ] && { printf 'failed|brain busy (409) >%ss' "$MAX_WAIT"; return 2; }
