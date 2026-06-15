@@ -38,7 +38,7 @@ REPOS=(
   "https://github.com/Sandbox-Group-LLC/Sandbox-GTM.git"
   "https://github.com/Sandbox-Group-LLC/Sandbox-ERP.git"
   "https://github.com/BrianBMorgan/ForgeOS.git"
-  "https://github.com/BrianBMorgan/Content-Brain.git"
+  "https://github.com/Sandbox-Group-LLC/Content-Brain.git"
 )
 
 ALWAYS_FRESH=false   # false = pull, heal only on failure (fast) | true = delete+clone every run (bulletproof)
@@ -55,9 +55,11 @@ reponame(){ local u="${1##*/}"; printf '%s' "${u%.git}"; }   # URL -> "SYSOI.ai"
 # Analyze one repo and wait for a terminal state.
 # Prints "code|detail" on stdout; rc: 0=complete 2=failed 3=gateway 4=timeout
 run_analyze(){
-  local url="$1" name="$2" resp http body jid st ph start el gw=0 payload pstart
+  local url="$1" name="$2" emb="${3:-true}" resp http body jid st ph start el gw=0 payload pstart
   # Build JSON with jq so a URL with special chars can't break the payload.
-  payload=$(jq -n --arg url "$url" '{url: $url, embeddings: true}')
+  # $emb (default true) drops to false for docs-only repos with no embeddable
+  # symbols — see the embeddings self-heal in the sweep loop below.
+  payload=$(jq -n --arg url "$url" --argjson emb "$emb" '{url: $url, embeddings: $emb}')
   # The brain serializes analyze jobs: POSTing while another repo is still
   # indexing returns 409. Back off and wait for the in-flight job to finish
   # rather than failing (and cascading the failure to every later repo).
@@ -108,6 +110,14 @@ for url in "${REPOS[@]}"; do
     echo "    [$name] pull wedge detected -> deleting clone + re-cloning"
     curl -sS "${AUTH[@]}" -m 30 -X DELETE "$BRAIN/api/repo?repo=$name" >/dev/null 2>&1
     res=$(run_analyze "$url" "$name"); rc=$?; act="HEALED (re-cloned)"
+  fi
+  # Self-heal: a docs-only repo (pure markdown, no code symbols) yields 0
+  # embeddings, and the analyze guard refuses to register it with embeddings:true
+  # ("without persisted embeddings"). Re-analyze without embeddings — keyword +
+  # graph search still work; there are no symbols to embed anyway.
+  if [ "$rc" -eq 2 ] && printf '%s' "$res" | grep -qiE 'without persisted embeddings|embeddings: ?0'; then
+    echo "    [$name] no embeddable symbols (docs-only) -> re-analyzing without embeddings"
+    res=$(run_analyze "$url" "$name" false); rc=$?; act="indexed (no embeddings)"
   fi
   if [ "$rc" -eq 0 ]; then REPORT+=("OK   | $name | $act | ${res#*|}")
   else ok=false;          REPORT+=("FAIL | $name | ${res%%|*} | ${res#*|}"); fi
