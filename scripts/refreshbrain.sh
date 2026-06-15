@@ -38,6 +38,7 @@ REPOS=(
   "https://github.com/Sandbox-Group-LLC/Sandbox-GTM.git"
   "https://github.com/Sandbox-Group-LLC/Sandbox-ERP.git"
   "https://github.com/BrianBMorgan/ForgeOS.git"
+  "https://github.com/BrianBMorgan/Content-Brain.git"
 )
 
 ALWAYS_FRESH=false   # false = pull, heal only on failure (fast) | true = delete+clone every run (bulletproof)
