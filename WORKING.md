@@ -16,7 +16,7 @@ Last updated: 2026-06-17
 we're pursuing — grounding for outbound, NOT a pitch playbook.
 
 **Shipped.** `PROSPECTS/README.md` (scope contract) + `PROSPECTS/_TEMPLATE.md`
-(per-prospect shape) — PR **#2** merged to `main` on 2026-06-17. The prior
+(per-prospect shape) — Content-Brain PR **#2** merged to `main` on 2026-06-17. The prior
 blocker (Content-Brain out of the session's repo scope) is gone: the repo is now
 in scope and clones locally. File bodies are preserved below for reference; the
 live files are in the repo.
@@ -111,7 +111,7 @@ A prospect is not a client — never assert or imply a relationship that doesn't
 ### Next steps (what's left)
 
 1. ~~Confirm `Sandbox-Group-LLC/Content-Brain` is in the session's repo scope.~~ — done.
-2. ~~Create `PROSPECTS/README.md` + `PROSPECTS/_TEMPLATE.md`, open a draft PR.~~ — done (PR #2 merged).
+2. ~~Create `PROSPECTS/README.md` + `PROSPECTS/_TEMPLATE.md`, open a draft PR.~~ — done (Content-Brain PR #2 merged).
 3. Seed real prospect docs from the `_TEMPLATE` (Brian names the prospect +
    domain; pull the public snapshot — ForgeScrape / FI brand profile for the
    public fields only). **Pilot one first**, get it reviewed, then batch a few per PR.
