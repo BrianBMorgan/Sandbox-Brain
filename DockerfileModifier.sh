@@ -108,8 +108,7 @@ RUN mkdir -p /data /state && chown node:node /data /state
 # At runtime, GPU is auto-detected: CUDA EP if --gpus all, otherwise CPU fallback.
 # ONNXRUNTIME_NODE_INSTALL forces the postinstall to download CUDA binaries on linux/x64.
 # On linux/arm64 the postinstall has no CUDA manifest and exits cleanly (CPU-only).
-RUN --mount=type=cache,target=/root/.cache/pip \
-    apt-get update && \
+RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     make g++ binutils && \
     echo "Installing ${GITNEXUS_MCP_PKG}..." && \
