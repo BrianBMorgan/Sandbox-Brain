@@ -13,7 +13,6 @@ workflow default, then re-run the workflow). See `README.md`.
 | Base image `node:22-trixie-slim` | `node:22-trixie-slim@sha256:e637ac91fb4f2f40761d217c5d48c41a05edf0b65eb9c34e72c27cce55af9e65` | Docker Hub registry (`registry-1.docker.io`, `library/node`, tag `22-trixie-slim`) | 2026-06-01 |
 | HAProxy source `haproxy:lts` | `haproxy:lts@sha256:74735a91316c777de22894a4216729bfee79500caf5ed27dacf92dcd88b22f1c` | Docker Hub registry (`registry-1.docker.io`, `library/haproxy`, tag `lts`) | 2026-06-01 |
 | `gitnexus` (npm) | `gitnexus@1.6.5` | npm registry `https://registry.npmjs.org/gitnexus` → `.dist-tags.latest` | 2026-06-01 |
-| `mcp-proxy` (PyPI) | `mcp-proxy==0.12.0` | PyPI `https://pypi.org/pypi/mcp-proxy/json` → `.info.version` | 2026-06-01 |
 | `serve` (npm) | `serve@14.2.6` | npm registry `https://registry.npmjs.org/serve` → `.dist-tags.latest` | 2026-06-01 |
 | GitNexus frontend (git) | `4f7697c43b1aff0662eae528fc8a1bc01db6a284` | GitHub API `repos/abhigyanpatwari/GitNexus/commits/main` → `.sha` (HEAD of `main`) | 2026-06-01 |
 | Embedding model (HF, baked) | `Snowflake/snowflake-arctic-embed-xs` (384-dim, fp32, ~90MB) | gitnexus 1.6.5 `DEFAULT_EMBEDDING_CONFIG.modelId` (loaded via `@huggingface/transformers`) | 2026-06-06 |
@@ -67,16 +66,6 @@ curl -s https://registry.npmjs.org/gitnexus | jq -r '.["dist-tags"].latest'
 Installed in the final image as `gitnexus@1.6.5` (`npm install -g`). The
 workflow exposes `gitnexus_version` as a dispatch input (default `1.6.5`) so a
 specific build can pin a different gitnexus release without editing files.
-
-### `mcp-proxy` PyPI version
-
-```bash
-curl -s https://pypi.org/pypi/mcp-proxy/json | jq -r '.info.version'
-# 0.12.0
-```
-
-Installed as `mcp-proxy==0.12.0` (`pip install`). Previously floating
-(`pip install mcp-proxy`).
 
 ### `serve` npm version
 
