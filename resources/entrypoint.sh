@@ -4,7 +4,6 @@ set -euo pipefail
 readonly DEFAULT_PUID=1000
 readonly DEFAULT_PGID=1000
 readonly DEFAULT_PORT=8010
-readonly DEFAULT_INTERNAL_PORT=38011
 readonly DEFAULT_WEB_UI_PORT=4747
 readonly WEB_UI_STATIC_PORT=39012
 readonly WEB_UI_STATIC_DIR="/usr/local/share/gitnexus-web"
@@ -16,7 +15,6 @@ readonly SAFE_API_KEY_REGEX='^[[:graph:]]+$'
 readonly MIN_API_KEY_LEN=5
 readonly MAX_API_KEY_LEN=256
 readonly FIRST_RUN_FILE="/state/first_run_complete"
-readonly HAPROXY_SERVER_NAME="gitnexus"
 readonly HAPROXY_TEMPLATE="/etc/haproxy/haproxy.cfg.template"
 readonly HAPROXY_CONFIG="/tmp/haproxy.cfg"
 readonly STATE_DIR="/state"
@@ -591,32 +589,22 @@ generate_haproxy_config() {
     escaped_bind_params="$(escape_sed_replacement "$BIND_PARAMS")"
     escaped_quic_bind_line="$(escape_sed_replacement "$QUIC_BIND_LINE")"
 
-    # Concurrency caps. Bound HAProxy-level acceptance so a burst cannot
-    # trigger unbounded upstream mcp-proxy child reuse / spawn. Empty = no cap.
+    # Concurrency cap. Bound HAProxy-level frontend acceptance. Empty = no cap.
     local frontend_maxconn_clause=""
-    local server_maxconn_clause=""
     if [[ "${HAPROXY_FRONTEND_MAXCONN:-0}" =~ ^[1-9][0-9]*$ ]]; then
         frontend_maxconn_clause="maxconn ${HAPROXY_FRONTEND_MAXCONN}"
     fi
-    if [[ "${HAPROXY_SERVER_MAXCONN:-0}" =~ ^[1-9][0-9]*$ ]]; then
-        server_maxconn_clause="maxconn ${HAPROXY_SERVER_MAXCONN}"
-    fi
     local escaped_frontend_maxconn
-    local escaped_server_maxconn
     escaped_frontend_maxconn="$(escape_sed_replacement "$frontend_maxconn_clause")"
-    escaped_server_maxconn="$(escape_sed_replacement "$server_maxconn_clause")"
 
     sed -e "s|__SERVER_PORT__|${PORT}|g" \
         -e "s|__BIND_PARAMS__|${escaped_bind_params}|g" \
         -e "s|__QUIC_BIND_LINE__|${escaped_quic_bind_line}|g" \
-        -e "s|__INTERNAL_PORT__|${INTERNAL_PORT}|g" \
         -e "s|__WEB_UI_PORT__|${WEB_UI_PORT}|g" \
         -e "s|__WEB_UI_STATIC_PORT__|${WEB_UI_STATIC_PORT}|g" \
-        -e "s|__SERVER_NAME__|${HAPROXY_SERVER_NAME}|g" \
         -e "s|__CORS_PREFLIGHT_CONDITION__|${cors_preflight_condition}|g" \
         -e "s|__CORS_RESPONSE_CONDITION__|${cors_response_condition}|g" \
         -e "s|__FRONTEND_MAXCONN__|${escaped_frontend_maxconn}|g" \
-        -e "s|__SERVER_MAXCONN__|${escaped_server_maxconn}|g" \
         "$HAPROXY_TEMPLATE" > "${HAPROXY_CONFIG}.tmp"
 
     awk -v replacement="$api_key_check" -v replacement_cors="$cors_check" \
@@ -885,103 +873,6 @@ run_gitnexus_wiki() {
     fi
 }
 
-start_mcp_server() {
-    # mcp-proxy session model: stateful by default — one stdio child per
-    # Mcp-Session-Id, reused across requests. Sessions persist until the client
-    # explicitly closes them (no server-side TTL). Set MCP_PROXY_STATELESS=true
-    # only when full per-request isolation is required (memory-hostile).
-    MCP_PROXY_STATELESS="${MCP_PROXY_STATELESS:-false}"
-    # Cap virtual memory of each gitnexus stdio child (MiB; 0 disables).
-    GITNEXUS_MAX_MEM_MB="${GITNEXUS_MAX_MEM_MB:-0}"
-
-    # mcp-proxy receives the stdio command as positional args after `--`,
-    # so prlimit can prefix the argv list directly.
-    local gitnexus_argv=(gitnexus mcp)
-    if [[ "${GITNEXUS_MAX_MEM_MB}" =~ ^[1-9][0-9]*$ ]] && command -v prlimit >/dev/null 2>&1; then
-        local mem_bytes=$((GITNEXUS_MAX_MEM_MB * 1024 * 1024))
-        gitnexus_argv=(prlimit "--as=${mem_bytes}" -- "${gitnexus_argv[@]}")
-        echo "GitNexus MCP child memory cap: ${GITNEXUS_MAX_MEM_MB} MiB (prlimit --as)"
-    fi
-
-    # Build mcp-proxy CORS args. CORS env may be comma-separated origins or "*".
-    local cors_args=()
-    if [[ -n "${CORS:-}" ]]; then
-        local origin
-        for origin in ${CORS//,/ }; do
-            cors_args+=(--allow-origin "$origin")
-        done
-    fi
-    cors_args+=(--expose-header Mcp-Session-Id)
-
-    local stateless_args=()
-    if [[ "${MCP_PROXY_STATELESS,,}" == "true" ]]; then
-        stateless_args+=(--stateless)
-    else
-        stateless_args+=(--no-stateless)
-    fi
-
-    local mode_tag="stateful"
-    [[ "${MCP_PROXY_STATELESS,,}" == "true" ]] && mode_tag="stateless"
-
-    case "${PROTOCOL^^}" in
-        SHTTP|STREAMABLEHTTP|SSE)
-            # mcp-proxy exposes /mcp (StreamableHTTP) and /sse simultaneously.
-            CMD_ARGS=(mcp-proxy
-                --host 127.0.0.1
-                --port "$INTERNAL_PORT"
-                --pass-environment
-                "${stateless_args[@]}"
-                "${cors_args[@]}"
-                --
-                "${gitnexus_argv[@]}")
-            PROTOCOL_DISPLAY="mcp-proxy: /mcp (StreamableHTTP) + /sse (${mode_tag})"
-            ;;
-        WS|WEBSOCKET)
-            echo "ERROR: WebSocket transport is not supported by mcp-proxy." >&2
-            echo "       Use PROTOCOL=SHTTP or PROTOCOL=SSE instead." >&2
-            return 1
-            ;;
-        *)
-            echo "Invalid PROTOCOL='${PROTOCOL}', defaulting to ${DEFAULT_PROTOCOL}"
-            CMD_ARGS=(mcp-proxy
-                --host 127.0.0.1
-                --port "$INTERNAL_PORT"
-                --pass-environment
-                "${stateless_args[@]}"
-                "${cors_args[@]}"
-                --
-                "${gitnexus_argv[@]}")
-            PROTOCOL_DISPLAY="mcp-proxy: /mcp (StreamableHTTP) + /sse (${mode_tag})"
-            ;;
-    esac
-
-    echo "Launching GitNexus MCP via ${PROTOCOL_DISPLAY}"
-
-    if [ "$(id -u)" -eq 0 ]; then
-        gosu node "${CMD_ARGS[@]}" &
-    else
-        "${CMD_ARGS[@]}" &
-    fi
-
-    MCP_PID=$!
-
-    local i=0
-    until nc -z 127.0.0.1 "$INTERNAL_PORT" >/dev/null 2>&1; do
-        if ! kill -0 "$MCP_PID" >/dev/null 2>&1; then
-            echo "MCP server exited before becoming ready" >&2
-            return 1
-        fi
-
-        i=$((i + 1))
-        if [ "$i" -ge 30 ]; then
-            echo "MCP server did not become ready on ${INTERNAL_PORT}" >&2
-            return 1
-        fi
-
-        sleep 1
-    done
-}
-
 start_web_ui() {
     if ! is_true "${ENABLE_WEB_UI:-true}"; then
         echo "Web UI disabled (ENABLE_WEB_UI=false)"
@@ -1039,9 +930,6 @@ shutdown() {
     if [[ -n "${HAPROXY_PID:-}" ]]; then
         kill "$HAPROXY_PID" 2>/dev/null || true
     fi
-    if [[ -n "${MCP_PID:-}" ]]; then
-        kill "$MCP_PID" 2>/dev/null || true
-    fi
     if [[ -n "${WEB_UI_PID:-}" ]]; then
         kill "$WEB_UI_PID" 2>/dev/null || true
     fi
@@ -1062,7 +950,6 @@ main() {
     PGID="$(trim "$PGID")"
 
     PORT="${PORT:-$DEFAULT_PORT}"
-    INTERNAL_PORT="${INTERNAL_PORT:-$DEFAULT_INTERNAL_PORT}"
     WEB_UI_PORT="${WEB_UI_PORT:-$DEFAULT_WEB_UI_PORT}"
     PROTOCOL="${PROTOCOL:-$DEFAULT_PROTOCOL}"
     ENABLE_HTTPS="${ENABLE_HTTPS:-false}"
@@ -1075,7 +962,6 @@ main() {
     DATA_DIR="${DATA_DIR:-$DEFAULT_DATA_DIR}"
 
     PORT="$(validate_port "PORT" "$PORT" "$DEFAULT_PORT")"
-    INTERNAL_PORT="$(validate_port "INTERNAL_PORT" "$INTERNAL_PORT" "$DEFAULT_INTERNAL_PORT")"
     WEB_UI_PORT="$(validate_port "WEB_UI_PORT" "$WEB_UI_PORT" "$DEFAULT_WEB_UI_PORT")"
     TLS_MIN_VERSION="$(validate_tls_min_version "$TLS_MIN_VERSION" "$DEFAULT_TLS_MIN_VERSION")"
     HTTP_VERSION_MODE="$(normalize_http_version_mode "$HTTP_VERSION_MODE")"
@@ -1159,7 +1045,7 @@ main() {
     export XDG_CACHE_HOME="/home/node/.cache"
 
     # npm cache — `gitnexus` CLI + `npx serve` run as node, must not fall back
-    # to /root/.npm (mcp-proxy itself is pure Python and doesn't use npm).
+    # to /root/.npm.
     mkdir -p /home/node/.npm
     chown -R "${PUID}:${PGID}" /home/node/.npm 2>/dev/null || true
     export npm_config_cache="/home/node/.npm"
@@ -1254,7 +1140,6 @@ fs.writeFileSync('${_lbug_adapter}', c);
     echo "Starting GitNexus Services"
     echo "=========================================="
 
-    start_mcp_server
     start_web_ui
     start_web_static
     start_haproxy
@@ -1285,14 +1170,14 @@ fs.writeFileSync('${_lbug_adapter}', c);
     fi
 
     echo "=========================================="
-    echo "GitNexus MCP Server: port ${PORT} (${PROTOCOL_DISPLAY})"
+    echo "GitNexus MCP endpoint: port ${PORT} at /api/mcp (StreamableHTTP, served in-process by gitnexus serve)"
     if is_true "${ENABLE_WEB_UI:-true}"; then
         echo "GitNexus Web UI:     http://0.0.0.0:${PORT}/"
     fi
     echo "=========================================="
 
     # Wait for any child process to exit
-    local pids=("$MCP_PID" "$HAPROXY_PID")
+    local pids=("$HAPROXY_PID")
     if [[ -n "${WEB_UI_PID:-}" ]]; then
         pids+=("$WEB_UI_PID")
     fi
