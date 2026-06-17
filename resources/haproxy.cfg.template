@@ -29,6 +29,11 @@ frontend mcp_frontend
     acl is_localhost src 127.0.0.1 ::1
 
     # Route ACLs
+    # is_mcp_path matches the relocated MCP endpoint (/api/mcp). It is used only
+    # by the auth rules — Basic-auth-exempt + API_KEY-enforced, same posture the
+    # old /mcp route had — NOT for routing (/api/mcp flows to web_api_backend via
+    # is_api_path). Must be a more specific prefix listed alongside is_api_path.
+    acl is_mcp_path path_beg /api/mcp
     acl is_api_path path_beg /api
 
     # Paths exempt from API key auth
