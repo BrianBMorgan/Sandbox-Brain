@@ -9,21 +9,22 @@ Last updated: 2026-06-17
 
 ---
 
-## ACTIVE: stand up a `PROSPECTS/` directory in Content-Brain
+## DONE (2026-06-17): `PROSPECTS/` directory stood up in Content-Brain
 
-**Goal.** Add a `PROSPECTS/` directory to **Content-Brain**
+**Goal (met).** Added a `PROSPECTS/` directory to **Content-Brain**
 (`Sandbox-Group-LLC/Content-Brain`) holding public-safe snapshots of accounts
 we're pursuing — grounding for outbound, NOT a pitch playbook.
 
-**BLOCKER (why this is a handoff, not done).** Content-Brain is **not in the
-current session's GitHub repo scope**, and Anthropic doesn't let us mount a repo
-mid-session. A GitHub-MCP write to it is denied. There is no browser/Chromium
-tool and no Composio server in-session either, so there's no side channel.
+**Shipped.** `PROSPECTS/README.md` (scope contract) + `PROSPECTS/_TEMPLATE.md`
+(per-prospect shape) — Content-Brain PR **#2** merged to `main` on 2026-06-17. The prior
+blocker (Content-Brain out of the session's repo scope) is gone: the repo is now
+in scope and clones locally. File bodies are preserved below for reference; the
+live files are in the repo.
 
-**To resume:** launch the next session with **`Sandbox-Group-LLC/Content-Brain`
-added to the allowed-repo list**, then create the two scaffold files below and
-open a draft PR (Content-Brain's workflow). The file bodies are reproduced here
-verbatim so the next session can paste them straight in.
+**Remaining (optional, needs a human to name targets):** seed real
+`PROSPECTS/<name>.md` docs from `_TEMPLATE.md`. **Pilot-first** — Content-Brain's
+README mandates the *first* prospect PR cover **one** account so the PII gate is
+calibrated before going wide; after that pilot is reviewed, batch a few per PR.
 
 ### Decision (settled with Brian)
 
@@ -107,14 +108,13 @@ A prospect is not a client — never assert or imply a relationship that doesn't
   public priorities. No wedge, no deal economics, no names.>
 ```
 
-### Next-session steps
+### Next steps (what's left)
 
-1. Confirm `Sandbox-Group-LLC/Content-Brain` is in the session's repo scope.
-2. Create `PROSPECTS/README.md` + `PROSPECTS/_TEMPLATE.md` (bodies above) and
-   open a **draft PR** into Content-Brain's default branch.
-3. Optionally seed a first real prospect doc from the `_TEMPLATE` (Brian names
-   the prospect + domain; pull the public snapshot — ForgeScrape / FI brand
-   profile for the public fields only).
+1. ~~Confirm `Sandbox-Group-LLC/Content-Brain` is in the session's repo scope.~~ — done.
+2. ~~Create `PROSPECTS/README.md` + `PROSPECTS/_TEMPLATE.md`, open a draft PR.~~ — done (Content-Brain PR #2 merged).
+3. Seed real prospect docs from the `_TEMPLATE` (Brian names the prospect +
+   domain; pull the public snapshot — ForgeScrape / FI brand profile for the
+   public fields only). **Pilot one first**, get it reviewed, then batch a few per PR.
 4. The Brain console's **"Research recent news → PR"** button already works on
    any path, so once a `PROSPECTS/<name>.md` exists it refreshes that doc's
    "Recent signal" block for free.
