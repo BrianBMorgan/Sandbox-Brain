@@ -29,7 +29,11 @@ frontend mcp_frontend
     acl is_localhost src 127.0.0.1 ::1
 
     # Route ACLs
-    acl is_mcp_path path_beg /mcp
+    # is_mcp_path matches the relocated MCP endpoint (/api/mcp). It is used only
+    # by the auth rules — Basic-auth-exempt + API_KEY-enforced, same posture the
+    # old /mcp route had — NOT for routing (/api/mcp flows to web_api_backend via
+    # is_api_path). Must be a more specific prefix listed alongside is_api_path.
+    acl is_mcp_path path_beg /api/mcp
     acl is_api_path path_beg /api
 
     # Paths exempt from API key auth
@@ -39,9 +43,9 @@ frontend mcp_frontend
     # Define ACL that's always false (for CORS disabled scenario)
     acl always_false always_false
 
-    # Local health endpoint. mcp-proxy has no configurable /healthz, so HAProxy
-    # answers directly. Returned before IP/auth/rate filters so Docker's
-    # localhost healthcheck always succeeds regardless of upstream readiness.
+    # Local health endpoint answered directly by HAProxy, before IP/auth/rate
+    # filters, so Docker's localhost healthcheck always succeeds regardless of
+    # upstream readiness.
     http-request return status 200 content-type "text/plain" string "ok\n" if is_health_check is_localhost
 
     # IP access control (allowlist/blocklist)
@@ -76,24 +80,13 @@ frontend mcp_frontend
     http-response set-header X-Frame-Options "DENY"
     http-response set-header Strict-Transport-Security "max-age=31536000; includeSubDomains" if { ssl_fc }
 
-    # Route: MCP protocol -> mcp-proxy (/healthz answered locally above)
-    use_backend mcp_backend if is_mcp_path
-
-    # Route: API requests -> gitnexus serve
+    # Route: API requests -> gitnexus serve (also mounts /api/mcp)
     use_backend web_api_backend if is_api_path
 
     # Route: Everything else -> static frontend
     default_backend web_static_backend
 
-# Backend - mcp-proxy (stdio<->StreamableHTTP/SSE bridge)
-# balance hdr(Mcp-Session-Id) keeps requests for the same MCP session pinned to
-# the same backend (no-op with one backend, future-proof for multi-replica).
-backend mcp_backend
-    balance hdr(Mcp-Session-Id)
-    hash-type consistent
-    server __SERVER_NAME__ 127.0.0.1:__INTERNAL_PORT__ check __SERVER_MAXCONN__
-
-# Backend - GitNexus API server (gitnexus serve)
+# Backend - GitNexus API server (gitnexus serve; also mounts /api/mcp)
 backend web_api_backend
     balance roundrobin
     server gitnexus-api [::1]:__WEB_UI_PORT__

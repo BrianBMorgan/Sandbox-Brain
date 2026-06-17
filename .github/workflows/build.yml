@@ -27,7 +27,6 @@ env:
   # Fully-pinned build inputs (resolved 2026-06-01 — see PINS.md).
   BASE_IMAGE: "node:22-trixie-slim@sha256:e637ac91fb4f2f40761d217c5d48c41a05edf0b65eb9c34e72c27cce55af9e65"
   HAPROXY_IMAGE: "haproxy:lts@sha256:74735a91316c777de22894a4216729bfee79500caf5ed27dacf92dcd88b22f1c"
-  MCP_PROXY_VERSION: "mcp-proxy==0.12.0"
 
 jobs:
   build:
@@ -53,10 +52,9 @@ jobs:
           printf '%s' "${BASE_IMAGE}"        > build_data/base-image
           printf '%s' "${HAPROXY_IMAGE}"     > build_data/haproxy-image
           printf '%s' "${{ inputs.gitnexus_version }}" > build_data/version
-          printf '%s' "${MCP_PROXY_VERSION}" > build_data/mcp_proxy_version
           touch build_data/build
           echo "----- build_data -----"
-          for f in base-image haproxy-image version mcp_proxy_version; do
+          for f in base-image haproxy-image version; do
             printf '%s = %s\n' "$f" "$(cat build_data/$f)"
           done
 
@@ -64,7 +62,7 @@ jobs:
         run: |
           bash ./DockerfileModifier.sh
           echo "----- generated FROM / install / clone lines -----"
-          grep -nE '^FROM |gitnexus@|mcp-proxy==|serve@|git (init|-c advice|remote add)|GitNexus\.git|checkout ' Dockerfile.gitnexus-mcp
+          grep -nE '^FROM |gitnexus@|serve@|git (init|-c advice|remote add)|GitNexus\.git|checkout ' Dockerfile.gitnexus-mcp
 
       - name: Build and push (amd64)
         run: |

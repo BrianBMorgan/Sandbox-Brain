@@ -11,11 +11,6 @@ GITNEXUS_VERSION=$(cat ./build_data/version 2>/dev/null || echo "1.6.5")
 GITNEXUS_MCP_PKG="gitnexus@${GITNEXUS_VERSION}"
 # Frontend pinned to a fixed upstream commit (not main) — see PINS.md.
 GITNEXUS_FRONTEND_COMMIT="4f7697c43b1aff0662eae528fc8a1bc01db6a284"
-# mcp-proxy: stdio<->StreamableHTTP/SSE bridge. Replaces supergateway.
-# Stateful by default (one stdio child per Mcp-Session-Id, reused across
-# requests) — avoids the spawn-per-request memory leak that affected
-# supergateway in stateless mode (supercorp-ai/supergateway#108).
-MCP_PROXY_PKG=$(cat ./build_data/mcp_proxy_version 2>/dev/null || echo "mcp-proxy==0.12.0")
 # serve: static file server for the web UI. Pinned.
 SERVE_PKG="serve@14.2.6"
 DOCKERFILE_NAME="Dockerfile.$REPO_NAME"
@@ -85,11 +80,11 @@ RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/banner.sh /usr/local/bi
     && ls -la /etc/haproxy/haproxy.cfg.template
 
 # Install runtime packages (keep apt haproxy for shared libraries, binary replaced below)
-# python3 + pip stay at runtime to host the mcp-proxy stdio<->HTTP bridge.
+# python3 stays for node-gyp (native module compilation during the gitnexus install).
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     bash haproxy gosu netcat-openbsd openssl ca-certificates iproute2 tzdata git wget procps \
-    python3 python3-pip python3-venv && \
+    python3 && \
     rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /usr/share/info /usr/share/locale /usr/share/lintian
 
 # CUDA runtime libraries are NOT baked into the image to keep it slim.
@@ -113,8 +108,7 @@ RUN mkdir -p /data /state && chown node:node /data /state
 # At runtime, GPU is auto-detected: CUDA EP if --gpus all, otherwise CPU fallback.
 # ONNXRUNTIME_NODE_INSTALL forces the postinstall to download CUDA binaries on linux/x64.
 # On linux/arm64 the postinstall has no CUDA manifest and exits cleanly (CPU-only).
-RUN --mount=type=cache,target=/root/.cache/pip \
-    apt-get update && \
+RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     make g++ binutils && \
     echo "Installing ${GITNEXUS_MCP_PKG}..." && \
@@ -130,9 +124,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     else \
       echo "CUDA EP: not present (CPU-only, expected on \$(uname -m))"; \
     fi && \
-    echo "Installing mcp-proxy (replaces supergateway)..." && \
-    pip install --no-cache-dir --break-system-packages ${MCP_PROXY_PKG} && \
-    mcp-proxy --version || true && \
     echo "Installing serve (static file server)..." && \
     npm install -g ${SERVE_PKG} --omit=dev --no-audit --no-fund --loglevel error && \
     bash /usr/local/bin/optimize.sh && \
