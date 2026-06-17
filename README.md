@@ -11,8 +11,9 @@ dependency is pinned to an exact digest / version / commit, and bumping any of
 them is a deliberate, reviewable edit.
 
 It packages [GitNexus](https://github.com/abhigyanpatwari/GitNexus) (a code-
-intelligence MCP server) behind HAProxy + an `mcp-proxy` stdio↔HTTP bridge, the
-same as upstream.
+intelligence MCP server) behind HAProxy. Upstream's `mcp-proxy` stdio↔HTTP
+bridge has been **removed** from this fork — MCP is served in-process by
+`gitnexus serve` at `/api/mcp` (one canonical URL; see "Using the brain").
 
 > **In-flight work:** cross-repo brain initiatives currently in progress (e.g.
 > the Content-Brain `PROSPECTS/` directory) are tracked in
@@ -31,7 +32,7 @@ same as upstream.
 | Architectures | `amd64` + `arm64` | **`amd64` only** (Render runs amd64) |
 | Base image | `node:22-trixie-slim` (floating tag) | pinned by `@sha256` digest |
 | HAProxy source | `haproxy:lts` (floating tag) | pinned by `@sha256` digest |
-| `mcp-proxy` | `pip install mcp-proxy` (floating) | pinned `mcp-proxy==X.Y.Z` |
+| MCP transport | HAProxy → `mcp-proxy` stdio↔HTTP bridge at `/mcp` | **removed** — MCP served in-process by `gitnexus serve` at `/api/mcp` |
 | `serve` | `serve@latest` | pinned `serve@X.Y.Z` |
 | Frontend (web UI) | `git clone --depth 1 … main` (moving target) | pinned to a fixed upstream **commit** |
 | Embedding model | downloaded from HuggingFace at **runtime** (needs egress) | **baked into the image at build time** (egress-proof) — see [`PINS.md`](PINS.md) |
@@ -55,7 +56,6 @@ Resolved **2026-06-01**. Full provenance (resolution commands + sources) is in
 | Base image | `node:22-trixie-slim@sha256:e637ac91fb4f2f40761d217c5d48c41a05edf0b65eb9c34e72c27cce55af9e65` |
 | HAProxy source | `haproxy:lts@sha256:74735a91316c777de22894a4216729bfee79500caf5ed27dacf92dcd88b22f1c` |
 | `gitnexus` (npm) | `gitnexus@1.6.5` |
-| `mcp-proxy` (PyPI) | `mcp-proxy==0.12.0` |
 | `serve` (npm) | `serve@14.2.6` |
 | GitNexus frontend (git) | `4f7697c43b1aff0662eae528fc8a1bc01db6a284` |
 | Embedding model (HF, baked) | `Snowflake/snowflake-arctic-embed-xs` (384-dim) |
@@ -65,7 +65,7 @@ Resolved **2026-06-01**. Full provenance (resolution commands + sources) is in
 ## How it builds
 
 The Dockerfile is **generated**, not committed. `DockerfileModifier.sh` reads
-`build_data/{base-image,haproxy-image,version,mcp_proxy_version}` (falling back
+`build_data/{base-image,haproxy-image,version}` (falling back
 to the pinned values above) and heredoc-emits `Dockerfile.gitnexus-mcp`. The CI
 workflow writes those `build_data` files from the pinned values, runs the
 generator, then `docker buildx build … --push`.
@@ -108,7 +108,6 @@ mkdir -p build_data
 printf '%s' "node:22-trixie-slim@sha256:e637ac91fb4f2f40761d217c5d48c41a05edf0b65eb9c34e72c27cce55af9e65" > build_data/base-image
 printf '%s' "haproxy:lts@sha256:74735a91316c777de22894a4216729bfee79500caf5ed27dacf92dcd88b22f1c"     > build_data/haproxy-image
 printf '%s' "1.6.5"              > build_data/version
-printf '%s' "mcp-proxy==0.12.0"  > build_data/mcp_proxy_version
 touch build_data/build
 bash ./DockerfileModifier.sh   # writes Dockerfile.gitnexus-mcp
 ```
@@ -127,7 +126,7 @@ Pins do **not** update themselves. To move one:
    - [`PINS.md`](PINS.md) — value + date + source.
    - [`DockerfileModifier.sh`](DockerfileModifier.sh) — the matching fallback
      (`BASE_IMAGE`, `HAPROXY_IMAGE`, `GITNEXUS_VERSION`,
-     `GITNEXUS_FRONTEND_COMMIT`, `MCP_PROXY_PKG`, or `SERVE_PKG`).
+     `GITNEXUS_FRONTEND_COMMIT`, or `SERVE_PKG`).
    - [`.github/workflows/build.yml`](.github/workflows/build.yml) — the matching
      `env:` value (or the `gitnexus_version` input default).
 3. For a one-off gitnexus version bump only, you can instead just pass a
@@ -168,8 +167,9 @@ Mutating routes and the MCP endpoint require `Authorization: Bearer <API_KEY>`;
   then call the **`query`** tool with `{ "repo": "<name>", "query": "<text>" }`.
   Semantic-by-meaning search works here because the MCP path lazy-loads the baked
   embedding model.
-  > HAProxy also routes `/mcp` to the bundled `mcp-proxy` bridge, but that path
-  > currently returns **404** — use `/api/mcp`. Tracked in **issue #7**.
+  > `/api/mcp` is the single canonical MCP URL. The old `/mcp` route (an
+  > `mcp-proxy` bridge that 404'd) was **removed** from this fork — see
+  > **issue #7**.
 - **Indexing:** `POST /api/analyze {"url":"<git-url>","embeddings":true}`, then
   poll `GET /api/analyze/{jobId}` to `complete`/`failed`. `"embeddings":true` is
   **required** — without it the repo indexes but with `embeddings:0` and no
