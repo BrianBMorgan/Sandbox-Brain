@@ -14,6 +14,11 @@ It packages [GitNexus](https://github.com/abhigyanpatwari/GitNexus) (a code-
 intelligence MCP server) behind HAProxy + an `mcp-proxy` stdio↔HTTP bridge, the
 same as upstream.
 
+> **In-flight work:** cross-repo brain initiatives currently in progress (e.g.
+> the Content-Brain `PROSPECTS/` directory) are tracked in
+> [`WORKING.md`](WORKING.md) — a session-handoff doc so the next session resumes
+> without re-discovery.
+
 ---
 
 ## What changed vs. upstream
