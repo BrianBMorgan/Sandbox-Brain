@@ -1,0 +1,50 @@
+name: Brain Nightly Refresh — Sandbox-GTM
+
+# Sandbox-GTM runs on its OWN schedule, isolated from the core sweep
+# (refresh-cron.yml). Why: it's the largest indexed repo (~8.8k embeddings) and
+# its embeddings phase OOM-kills the gitnexus worker on the current Render plan,
+# which used to fail the whole nightly red even though the other six repos
+# refreshed fine. Quarantining it here means:
+#   - the core sweep stays green and obviously fresh,
+#   - GTM's red is its own, easy to watch in isolation,
+#   - GTM runs 3h after the core sweep, with the brain settled and no same-run
+#     predecessors competing for memory — its best shot at completing.
+#
+# Shares the `brain-refresh` concurrency group with the core sweep so the two
+# never run at the same time (the brain is memory-bound and serializes analyze
+# jobs anyway). If GTM still OOMs when solo, the next lever is trimming its index
+# footprint (exclude generated/vendored files), not more RAM.
+#
+# NOTE: schedule triggers only fire from the default branch (main). Use
+# "Run workflow" (workflow_dispatch) to trigger a GTM refresh on demand.
+
+on:
+  schedule:
+    - cron: "0 11 * * *"   # 11:00 UTC (~3am PT / 6am ET) — 3h after the core sweep
+  workflow_dispatch: {}
+
+# Same group as the core sweep so the two refreshes never overlap.
+concurrency:
+  group: brain-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh-gtm:
+    name: Refresh Sandbox-GTM only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run refreshbrain.sh (Sandbox-GTM only)
+        env:
+          BRAIN_API_KEY: ${{ secrets.BRAIN_API_KEY }}
+          # Run ONLY Sandbox-GTM. Keep in sync with refresh-cron.yml's REPO_SKIP.
+          REPO_ONLY: Sandbox-GTM
+        run: |
+          if [ -z "${BRAIN_API_KEY:-}" ]; then
+            echo "::error::BRAIN_API_KEY secret not set on this repo — refresh would 401. Add it in Settings → Secrets."
+            exit 1
+          fi
+          bash scripts/refreshbrain.sh

@@ -98,6 +98,31 @@ run_analyze(){
 }
 
 echo "=== Sandbox Brain refresh @ $(date -u +%FT%TZ) ==="
+
+# Optional repo selection — used by the split nightly schedules so a memory-heavy
+# repo (Sandbox-GTM) runs on its own and its failure doesn't redden the others:
+#   REPO_ONLY="Sandbox-GTM"   -> run ONLY these (comma-separated repo names)
+#   REPO_SKIP="Sandbox-GTM"   -> run all EXCEPT these
+# Names match reponame() output (the repo basename, no .git). Unset = all repos.
+REPO_ONLY="${REPO_ONLY:-}"
+REPO_SKIP="${REPO_SKIP:-}"
+in_csv(){ case ",$2," in *",$1,"*) return 0;; *) return 1;; esac; }   # in_csv NAME CSV
+if [ -n "$REPO_ONLY" ] || [ -n "$REPO_SKIP" ]; then
+  _selected=()
+  for _u in "${REPOS[@]}"; do
+    _n=$(reponame "$_u")
+    [ -n "$REPO_ONLY" ] && { in_csv "$_n" "$REPO_ONLY" || continue; }
+    [ -n "$REPO_SKIP" ] && { in_csv "$_n" "$REPO_SKIP" && continue; }
+    _selected+=("$_u")
+  done
+  REPOS=("${_selected[@]+"${_selected[@]}"}")
+  if [ "${#REPOS[@]}" -eq 0 ]; then
+    echo "ERROR: REPO_ONLY/REPO_SKIP filtered out every repo (ONLY='$REPO_ONLY' SKIP='$REPO_SKIP')." >&2
+    exit 1
+  fi
+  echo "Repo filter active -> ${REPOS[*]##*/}" >&2
+fi
+
 ok=true; declare -a REPORT
 for url in "${REPOS[@]}"; do
   name=$(reponame "$url"); act="refreshed"

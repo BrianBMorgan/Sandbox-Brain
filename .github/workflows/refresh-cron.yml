@@ -6,6 +6,11 @@ name: Brain Nightly Refresh
 # (and so a wedged on-disk clone gets healed). The per-repo push workflows keep
 # things fresh on merge; this is the nightly catch-all + heal.
 #
+# This sweep covers every repo EXCEPT Sandbox-GTM (see REPO_SKIP below).
+# Sandbox-GTM is the largest repo and OOM-kills the embedding worker on the
+# current Render plan; it runs on its OWN schedule (refresh-gtm.yml, 3h later)
+# so its failure can't redden this sweep and it gets the brain to itself.
+#
 # NOTE: schedule triggers only fire from the default branch (main), so this cron
 # goes live once this PR merges. Use "Run workflow" (workflow_dispatch) to test
 # it immediately after merge.
@@ -25,13 +30,16 @@ permissions:
 
 jobs:
   refresh:
-    name: Refresh all repos in the brain
+    name: Refresh core repos (all except Sandbox-GTM)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - name: Run refreshbrain.sh
         env:
           BRAIN_API_KEY: ${{ secrets.BRAIN_API_KEY }}
+          # Sandbox-GTM is quarantined to refresh-gtm.yml. Keep this in sync with
+          # that workflow's REPO_ONLY.
+          REPO_SKIP: Sandbox-GTM
         run: |
           if [ -z "${BRAIN_API_KEY:-}" ]; then
             echo "::error::BRAIN_API_KEY secret not set on this repo — refresh would 401. Add it in Settings → Secrets."
