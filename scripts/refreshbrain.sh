@@ -118,14 +118,14 @@ if [ -n "${_only}${_skip}" ]; then
   for url in "${REPOS[@]}"; do
     n=$(reponame "$url")
     if [ -n "$_only" ]; then
-      in_list "$n" ${_onlyA[@]+"${_onlyA[@]}"} && _filtered+=("$url")
-    elif in_list "$n" ${_skipA[@]+"${_skipA[@]}"}; then
+      in_list "$n" "${_onlyA[@]}" && _filtered+=("$url")
+    elif in_list "$n" "${_skipA[@]}"; then
       continue
     else
       _filtered+=("$url")
     fi
   done
-  REPOS=(${_filtered[@]+"${_filtered[@]}"})
+  REPOS=("${_filtered[@]}")
   [ "${#REPOS[@]}" -eq 0 ] && { echo "ERROR: repo filter matched no repos (BRAIN_ONLY='$_only' BRAIN_SKIP='$_skip')" >&2; exit 2; }
   printf 'Repo filter active -> %s repo(s):' "${#REPOS[@]}"; for url in "${REPOS[@]}"; do printf ' %s' "$(reponame "$url")"; done; echo
 fi
