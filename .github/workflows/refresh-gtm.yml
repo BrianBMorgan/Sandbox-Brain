@@ -1,0 +1,43 @@
+name: Brain Nightly Refresh (Sandbox-GTM)
+
+# Sandbox-GTM is the brain's largest graph. Run inside the all-repos nightly
+# sweep, the cumulative memory OOM-kills its analyze worker (a killed worker
+# reports "code null"). So it gets its OWN off-peak slot here, isolated, against
+# a cold memory baseline — which is exactly when it indexes successfully on its
+# own. The main sweep (refresh-cron.yml) excludes it via BRAIN_SKIP. Both
+# workflows share the `brain-refresh` concurrency group so a GTM run and the
+# main sweep can never run at the same time.
+#
+# NOTE: schedule triggers only fire from the default branch (main), so this cron
+# goes live once this PR merges. Use "Run workflow" (workflow_dispatch) to test
+# it immediately after merge.
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # 02:00 UTC nightly (~7pm PT / 10pm ET) — well clear of the 08:00 sweep
+  workflow_dispatch: {}
+
+# Shared with the main sweep so the two schedules serialize and never overlap.
+concurrency:
+  group: brain-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    name: Refresh Sandbox-GTM in the brain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run refreshbrain.sh (Sandbox-GTM only)
+        env:
+          BRAIN_API_KEY: ${{ secrets.BRAIN_API_KEY }}
+          BRAIN_ONLY: Sandbox-GTM
+        run: |
+          if [ -z "${BRAIN_API_KEY:-}" ]; then
+            echo "::error::BRAIN_API_KEY secret not set on this repo — refresh would 401. Add it in Settings → Secrets."
+            exit 1
+          fi
+          bash scripts/refreshbrain.sh

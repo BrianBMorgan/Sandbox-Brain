@@ -30,7 +30,9 @@ AUTH=()
 [ -n "$API_KEY" ] && AUTH=(-H "Authorization: Bearer $API_KEY")
 [ -z "$API_KEY" ] && echo "WARNING: BRAIN_API_KEY not set; brain now requires API_KEY (calls will 401)." >&2
 
-# Repos to keep indexed (HTTPS git URLs). Add/remove freely.
+# Repos to keep indexed (HTTPS git URLs). Add/remove freely. A subset can be
+# selected per run via BRAIN_ONLY / BRAIN_SKIP (see the filter below) so the
+# heaviest repo can run on its own off-peak schedule.
 REPOS=(
   "https://github.com/Sandbox-Group-LLC/SYSOI.ai.git"
   "https://github.com/Sandbox-Group-LLC/Forge-Intelligence.git"
@@ -97,6 +99,37 @@ run_analyze(){
   done
 }
 
+# Optional repo filter (NAME-matched, comma- or whitespace-separated):
+#   BRAIN_ONLY="Sandbox-GTM"   -> sweep ONLY these repos
+#   BRAIN_SKIP="Sandbox-GTM"   -> sweep all EXCEPT these
+# Unset (both) = every repo, unchanged. This lets the heaviest repo run on its
+# own off-peak schedule: a full all-repos sweep peaks the persistent brain's RAM
+# and OOM-kills the analyze worker on the biggest graph (a killed worker reports
+# "code null"). Isolating that repo to its own run keeps each analyze against a
+# cold memory baseline. (Do NOT reach for GITNEXUS_MAX_MEM_MB to fix OOM — it
+# must stay 0 or LadybugDB can't mmap its 16 GiB reservation and every brain
+# tool returns "LadybugDB unavailable".)
+_only="${BRAIN_ONLY:-}"; _skip="${BRAIN_SKIP:-}"
+if [ -n "${_only}${_skip}" ]; then
+  in_list(){ local n="$1" i; shift; for i in "$@"; do [ "$i" = "$n" ] && return 0; done; return 1; }
+  read -r -a _onlyA <<< "${_only//,/ }"
+  read -r -a _skipA <<< "${_skip//,/ }"
+  declare -a _filtered=()
+  for url in "${REPOS[@]}"; do
+    n=$(reponame "$url")
+    if [ -n "$_only" ]; then
+      in_list "$n" ${_onlyA[@]+"${_onlyA[@]}"} && _filtered+=("$url")
+    elif in_list "$n" ${_skipA[@]+"${_skipA[@]}"}; then
+      continue
+    else
+      _filtered+=("$url")
+    fi
+  done
+  REPOS=(${_filtered[@]+"${_filtered[@]}"})
+  [ "${#REPOS[@]}" -eq 0 ] && { echo "ERROR: repo filter matched no repos (BRAIN_ONLY='$_only' BRAIN_SKIP='$_skip')" >&2; exit 2; }
+  printf 'Repo filter active -> %s repo(s):' "${#REPOS[@]}"; for url in "${REPOS[@]}"; do printf ' %s' "$(reponame "$url")"; done; echo
+fi
+
 echo "=== Sandbox Brain refresh @ $(date -u +%FT%TZ) ==="
 ok=true; declare -a REPORT
 for url in "${REPOS[@]}"; do
@@ -132,5 +165,5 @@ echo
 if $ok; then
   echo "RESULT: all repos refreshed OK"; exit 0
 else
-  echo "RESULT: FAILURE(S) above. If gateway/timeout, the brain likely OOM'd (Render 'pro' — bump the plan or set GITNEXUS_MAX_MEM_MB). Do not hammer-retry."; exit 1
+  echo "RESULT: FAILURE(S) above. A killed worker (code null), gateway, or timeout on a big repo is almost always the brain OOMing — give the heavy repo its own off-peak run (BRAIN_ONLY) or bump the Render plan. Do NOT set GITNEXUS_MAX_MEM_MB (it must stay 0 or LadybugDB can't mmap). Do not hammer-retry."; exit 1
 fi
