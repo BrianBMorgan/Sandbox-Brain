@@ -106,21 +106,22 @@ echo "=== Sandbox Brain refresh @ $(date -u +%FT%TZ) ==="
 # Names match reponame() output (the repo basename, no .git). Unset = all repos.
 REPO_ONLY="${REPO_ONLY:-}"
 REPO_SKIP="${REPO_SKIP:-}"
-in_csv(){ case ",$2," in *",$1,"*) return 0;; *) return 1;; esac; }   # in_csv NAME CSV
+in_csv(){ case ",${2//[[:space:]]/}," in *",$1,"*) return 0;; *) return 1;; esac; }   # in_csv NAME CSV (CSV whitespace-tolerant)
 if [ -n "$REPO_ONLY" ] || [ -n "$REPO_SKIP" ]; then
-  _selected=()
+  _selected=(); _selected_names=()
   for _u in "${REPOS[@]}"; do
     _n=$(reponame "$_u")
     [ -n "$REPO_ONLY" ] && { in_csv "$_n" "$REPO_ONLY" || continue; }
     [ -n "$REPO_SKIP" ] && { in_csv "$_n" "$REPO_SKIP" && continue; }
-    _selected+=("$_u")
+    _selected+=("$_u"); _selected_names+=("$_n")
   done
-  REPOS=("${_selected[@]+"${_selected[@]}"}")
+  REPOS=()
+  [ "${#_selected[@]}" -gt 0 ] && REPOS=("${_selected[@]}")
   if [ "${#REPOS[@]}" -eq 0 ]; then
     echo "ERROR: REPO_ONLY/REPO_SKIP filtered out every repo (ONLY='$REPO_ONLY' SKIP='$REPO_SKIP')." >&2
     exit 1
   fi
-  echo "Repo filter active -> ${REPOS[*]##*/}" >&2
+  echo "Repo filter active -> ${_selected_names[*]}" >&2
 fi
 
 ok=true; declare -a REPORT
