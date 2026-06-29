@@ -1,6 +1,6 @@
 name: Brain Nightly Refresh
 
-# Belt-and-suspenders sweep: re-index every repo in scripts/refreshbrain.sh into
+# Belt-and-suspenders sweep: re-index every repo in scripts/refresh-brain.sh into
 # the shared GitNexus brain on a schedule, so the graph stays fresh even for
 # changes that don't come through a repo's per-push brain-refresh workflow
 # (and so a wedged on-disk clone gets healed). The per-repo push workflows keep
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Run refreshbrain.sh
+      - name: Run refresh-brain.sh
         env:
           BRAIN_API_KEY: ${{ secrets.BRAIN_API_KEY }}
           BRAIN_SKIP: Sandbox-GTM
@@ -51,4 +51,4 @@ jobs:
             echo "::error::BRAIN_API_KEY secret not set on this repo — refresh would 401. Add it in Settings → Secrets."
             exit 1
           fi
-          bash scripts/refreshbrain.sh
+          bash scripts/refresh-brain.sh
