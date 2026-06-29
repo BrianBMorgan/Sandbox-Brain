@@ -8,13 +8,24 @@ name: Brain Nightly Refresh (Sandbox-GTM)
 # workflows share the `brain-refresh` concurrency group so a GTM run and the
 # main sweep can never run at the same time.
 #
-# NOTE: schedule triggers only fire from the default branch (main), so this cron
-# goes live once this PR merges. Use "Run workflow" (workflow_dispatch) to test
+# REDUNDANCY: two schedules (02:00 + 14:00 UTC). GitHub silently drops scheduled
+# events under load, so the second fire heals a skipped primary run the same day.
+# The GTM-only sweep is incremental, so the backup is a cheap no-op when the
+# primary ran. 14:00 UTC is clear of the GTM primary (02:00), the main sweep's
+# actual landing (~12:00 after GitHub's delay), and the main backup (18:00), so
+# the shared brain-refresh concurrency group never has to cancel it.
+#
+# NOTE: schedule triggers only fire from the default branch (main), so these crons
+# go live once this PR merges. Use "Run workflow" (workflow_dispatch) to test
 # it immediately after merge.
 
 on:
   schedule:
-    - cron: "0 2 * * *"   # 02:00 UTC nightly (~7pm PT / 10pm ET) — well clear of the 08:00 sweep
+    - cron: "0 2 * * *"    # 02:00 UTC primary (~7pm PT / 10pm ET), well clear of the 08:00 main sweep
+    # Backup heals a silently-skipped 02:00 fire (GitHub drops scheduled events under
+    # load). GTM-only, incremental, so it is a cheap no-op when the primary already ran;
+    # serialized via the brain-refresh concurrency group below.
+    - cron: "0 14 * * *"   # 14:00 UTC backup, clear of the GTM primary (02:00), main sweep (~12:00), and main backup (18:00)
   workflow_dispatch: {}
 
 # Shared with the main sweep so the two schedules serialize and never overlap.
