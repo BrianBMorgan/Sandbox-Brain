@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Run refreshbrain.sh (Sandbox-GTM only)
+      - name: Run refresh-brain.sh (Sandbox-GTM only)
         env:
           BRAIN_API_KEY: ${{ secrets.BRAIN_API_KEY }}
           BRAIN_ONLY: Sandbox-GTM
@@ -51,4 +51,4 @@ jobs:
             echo "::error::BRAIN_API_KEY secret not set on this repo — refresh would 401. Add it in Settings → Secrets."
             exit 1
           fi
-          bash scripts/refreshbrain.sh
+          bash scripts/refresh-brain.sh

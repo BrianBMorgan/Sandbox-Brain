@@ -173,7 +173,7 @@ Mutating routes and the MCP endpoint require `Authorization: Bearer <API_KEY>`;
 - **Indexing:** `POST /api/analyze {"url":"<git-url>","embeddings":true}`, then
   poll `GET /api/analyze/{jobId}` to `complete`/`failed`. `"embeddings":true` is
   **required** — without it the repo indexes but with `embeddings:0` and no
-  semantic search. `scripts/refreshbrain.sh` (nightly cron) keeps the configured
+  semantic search. `scripts/refresh-brain.sh` (nightly cron) keeps the configured
   repos indexed and embedded.
 - **Inspect:** `GET /api/repos` → each repo's stats, including the `embeddings`
   count (a quick way to confirm semantic data is present).

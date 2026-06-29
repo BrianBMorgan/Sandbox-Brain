@@ -155,7 +155,7 @@ then set the env below.
   gated). PRs target SYSOI `development`, then promoted to `main`.
 - **Content-Brain:** `Sandbox-Group-LLC/Content-Brain` — pure markdown
   (`companies/` · `customers/` · `industries/` · `voice/`, soon `PROSPECTS/`),
-  indexed into the brain WITHOUT embeddings. In `scripts/refreshbrain.sh` REPOS.
+  indexed into the brain WITHOUT embeddings. In `scripts/refresh-brain.sh` REPOS.
 - **Mailforge:** `BrianBMorgan/ForgeOS` branch `apps/mailforge` — outbound
   engine; brand-profile pull in `lib/forge.js`, pitch engine in `lib/pitch.js` /
   `lib/autopitch.js`. Deploys to `mailforge.forge-os.ai`.
