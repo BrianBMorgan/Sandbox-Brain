@@ -11,13 +11,21 @@ name: Brain Nightly Refresh
 # (BRAIN_SKIP) and runs on its own off-peak schedule in refresh-gtm.yml. Both
 # workflows share the `brain-refresh` concurrency group so they can never overlap.
 #
-# NOTE: schedule triggers only fire from the default branch (main), so this cron
-# goes live once this PR merges. Use "Run workflow" (workflow_dispatch) to test
+# REDUNDANCY: two schedules (08:00 + 18:00 UTC). GitHub silently drops scheduled
+# events under load, so the second fire heals a skipped morning run the same day.
+# The sweep is incremental, so the backup is a cheap no-op when the morning ran.
+#
+# NOTE: schedule triggers only fire from the default branch (main), so these crons
+# go live once this PR merges. Use "Run workflow" (workflow_dispatch) to test
 # it immediately after merge.
 
 on:
   schedule:
-    - cron: "0 8 * * *"   # 08:00 UTC nightly (~1am PT / 4am ET) — off-peak
+    - cron: "0 8 * * *"    # 08:00 UTC primary (~1am PT / 4am ET); GitHub delay lands it ~11-12:00 UTC
+    # Backup heals a silently-skipped 08:00 fire (GitHub drops scheduled events under
+    # load). Same non-GTM sweep, incremental, so it is a cheap no-op when the morning
+    # run already succeeded; serialized via the brain-refresh concurrency group below.
+    - cron: "0 18 * * *"   # 18:00 UTC backup, well clear of the GTM (02:00) and primary (~12:00) slots
   workflow_dispatch: {}
 
 # Never let two refreshes overlap (the brain is memory-bound); let a running one finish.
