@@ -57,11 +57,13 @@ reponame(){ local u="${1##*/}"; printf '%s' "${u%.git}"; }   # URL -> "SYSOI.ai"
 # Analyze one repo and wait for a terminal state.
 # Prints "code|detail" on stdout; rc: 0=complete 2=failed 3=gateway 4=timeout
 run_analyze(){
-  local url="$1" name="$2" emb="${3:-true}" resp http body jid st ph start el gw=0 payload pstart
+  local url="$1" name="$2" emb="${3:-true}" force="${4:-false}" resp http body jid st ph start el gw=0 payload pstart
   # Build JSON with jq so a URL with special chars can't break the payload.
   # $emb (default true) drops to false for docs-only repos with no embeddable
-  # symbols — see the embeddings self-heal in the sweep loop below.
-  payload=$(jq -n --arg url "$url" --argjson emb "$emb" '{url: $url, embeddings: $emb}')
+  # symbols — see the embeddings self-heal in the sweep loop below. $force
+  # (default false) sends force:true so gitnexus rebuilds through its
+  # nothing-changed short-circuit — see the orphaned-clone self-heal below.
+  payload=$(jq -n --arg url "$url" --argjson emb "$emb" --argjson force "$force" '{url: $url, embeddings: $emb, force: $force}')
   # The brain serializes analyze jobs: POSTing while another repo is still
   # indexing returns 409. Back off and wait for the in-flight job to finish
   # rather than failing (and cascading the failure to every later repo).
@@ -137,6 +139,7 @@ for url in "${REPOS[@]}"; do
   if $ALWAYS_FRESH; then
     curl -sS "${AUTH[@]}" -m 30 -X DELETE "$BRAIN/api/repo?repo=$name" >/dev/null 2>&1; act="rebuilt fresh"
   fi
+  embUsed=true
   res=$(run_analyze "$url" "$name"); rc=$?
   # Self-heal: a git pull/fetch/checkout failure means the on-disk clone is wedged.
   if [ "$rc" -eq 2 ] && printf '%s' "$res" | grep -qiE 'git (pull|fetch|checkout|merge)'; then
@@ -150,7 +153,23 @@ for url in "${REPOS[@]}"; do
   # graph search still work; there are no symbols to embed anyway.
   if [ "$rc" -eq 2 ] && printf '%s' "$res" | grep -qiE 'without persisted embeddings|embeddings: ?0'; then
     echo "    [$name] no embeddable symbols (docs-only) -> re-analyzing without embeddings"
-    res=$(run_analyze "$url" "$name" false); rc=$?; act="indexed (no embeddings)"
+    res=$(run_analyze "$url" "$name" false); rc=$?; act="indexed (no embeddings)"; embUsed=false
+  fi
+  # Self-heal: an ORPHANED CLONE — the registry/graph entry is gone but the
+  # on-disk clone survived — makes analyze report "complete" in ~1s at
+  # phase=pulling WITHOUT re-indexing or re-registering: gitnexus's
+  # nothing-changed short-circuit sees a clean, current clone and never forks
+  # the worker. The sweep then reports OK forever while the repo is absent
+  # from the brain (this hid SYSOI.ai's disappearance behind green nightlies).
+  # After any OK result, confirm the repo is actually registered; if it
+  # isn't, re-analyze with force:true to rebuild through the short-circuit.
+  if [ "$rc" -eq 0 ]; then
+    reg=$(curl -sS "${AUTH[@]}" -m 30 "$BRAIN/api/repos" 2>/dev/null)
+    if printf '%s' "$reg" | jq -e . >/dev/null 2>&1 && \
+       ! printf '%s' "$reg" | jq -e --arg n "$name" 'any(.[]; .name == $n)' >/dev/null; then
+      echo "    [$name] analyze OK but repo NOT registered (orphaned clone) -> re-analyzing with force:true"
+      res=$(run_analyze "$url" "$name" "$embUsed" true); rc=$?; act="HEALED (forced re-index)"
+    fi
   fi
   if [ "$rc" -eq 0 ]; then REPORT+=("OK   | $name | $act | ${res#*|}")
   else ok=false;          REPORT+=("FAIL | $name | ${res%%|*} | ${res#*|}"); fi
