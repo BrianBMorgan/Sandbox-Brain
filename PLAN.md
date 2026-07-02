@@ -1,0 +1,114 @@
+# PLAN — the strategist-intelligence roadmap
+
+**What this is.** The slow-changing strategy doc for one cross-repo initiative:
+building a specialized **event-strategist intelligence** on the Sandbox stack —
+bootstrap-grade, owned, compounding. Settled with Brian 2026-07-01.
+
+Doc roles in this repo: **CLAUDE.md** = how to work here · **WORKING.md** =
+fast-changing session handoff · **PLAN.md** (this file) = why + what's next.
+If it's not in a markdown file, it never happened.
+
+Last updated: 2026-07-01
+
+---
+
+## Thesis
+
+**Don't build the engine — rent fluency, own everything that makes it ours.**
+The scarce input for a specialized model was never compute; it's **paired data
+with outcomes** (context in → draft → human-final → result), and SYSOI mints
+exactly that as operating exhaust. Models got cheap; judgment didn't.
+
+The stack, by layer:
+
+| Layer | Asset | State (2026-07-01) |
+|:--|:--|:--|
+| **Engine** | Claude via SYSOI `lib/claude.ts` (`deep`/`reason`/`fast` tiers) | Live |
+| **Memory** | Sandbox Brain (this repo → GitNexus @ `sandbox-brain.onrender.com`, MCP `/api/mcp`) | Live; 9 repos indexed |
+| **Knowledge** | Content-Brain (curated markdown: companies · customers · industries · personas · prospects · voice) | Seeded (27 files); indexed WITHOUT embeddings (deliberate — curate first) |
+| **Voice / judgment** | `voice/brand-voice.md` + `personas/` | Exists; **not yet wired into the console chat** |
+| **Console** | SYSOI `src/modules/brain/` — grounded chat + propose-edit (draft PR) + research-propose | Live on `main` (verified byte-level 2026-07-01) |
+| **Audit** | `agent_runs` (model/tokens/latency/status on every AI call) | Live — telemetry only, not yet training pairs |
+| **Parallel proof** | Forge Intelligence (Forge-Scrape → brand profile → compounding context → AI-citable content) | Live — same architecture, different domain |
+
+## The ladder
+
+Each rung is optional-until-earned. Costs are all-in estimates, not budgets.
+
+### Phase 0 — voice wire + eval set (~$0, now)
+
+- **Voice wire:** in SYSOI `src/modules/brain/chat.ts`, when
+  `repo === 'Content-Brain'`, swap the "senior engineer" system prompt for the
+  strategist persona and prepend `voice/brand-voice.md` (+ the relevant
+  `personas/*.md`) to the grounding context. One conditional. Ships per SYSOI
+  workflow: branch off `development`, draft PR, CI green, auto-merge.
+- **Eval set:** ~100 held-out scenarios from the archive — real brief in,
+  what-the-senior-person-did out. **The un-skippable rung**: without it, every
+  later dollar is spent on vibes. Home: SYSOI `evals/` (private, versioned next
+  to the consumer). **NOT Content-Brain** — real briefs aren't public-safe
+  (Rule 0).
+
+### Phase 1 — the data engine (schema-cheap, this quarter)
+
+`agent_runs` logs telemetry, not training data. Extend capture to full pairs:
+**context in → AI draft → human-final version → downstream outcome**
+(merged / published / sent / won). The edit distance between draft and shipped
+IS the judgment — collected as exhaust, not homework.
+
+- **First surfaces (human gate already exists):** Brain-console propose-edit
+  (AI draft vs merged file), Dispatch pieces (draft → edited → published →
+  analytics), contact recaps, Coda narratives.
+- **Mechanism sketch:** a `training_pairs` table (or `agent_runs` extension)
+  written at the merge/publish seams; provenance fields from day 1 (source,
+  approver, rights-clean flag). Design doc first: SYSOI `docs/TRAINING-PAIRS.md`.
+- **Boundary (settled — see WORKING.md, Mailforge split):** pitch-angle
+  material (wedge / gap / economics / buyer path) stays in private surfaces;
+  training pairs inherit the same IN/OUT line.
+- Every week this isn't running is training data burned.
+
+### Phase 2 — LoRA at ~1–5k pairs ($100s–low $1,000s)
+
+Fine-tune an open model (Llama/Qwen class) on the pairs for **voice + volume
+paths**: Dispatch drafts, recaps, mini-dossiers — pennies per call, owned
+weights. Frontier stays rented for the reasoning tiers. **Portfolio, not
+replacement.** Same visit: bump the embedder pin
+(`snowflake-arctic-embed-xs` → a larger sibling; see PINS.md), re-embed, and
+run the ten known-answer retrieval test on Content-Brain the day embeddings
+flip on.
+
+### Phase 3 — provenance discipline (free, load-bearing, continuous)
+
+Train only on **human-approved shipped artifacts + outcomes**. Never raw
+frontier output. Better signal AND a clean rights trail — "doing it right"
+includes the paper trail.
+
+### Phase 4 — continued pretraining ($10–50k, only if fine-tunes ceiling out)
+
+Named for completeness. Most people never need the rung.
+
+## Decision log — 2026-07-01
+
+- **Content-Brain embeddings: deferred** until the corpus outgrows
+  read-the-files. Flip = already in `REPOS` with `embeddings:true` on the
+  nightly sweep; until then the taxonomy IS the retrieval system.
+- **Open item — README honesty:** Content-Brain's README claims semantic
+  searchability; with embeddings effectively keyword-only, an agent that
+  queries and misses concludes the knowledge doesn't exist. Add a "read files
+  directly" note until the flip.
+- **Eval home:** SYSOI `evals/`, not Content-Brain (Rule 0).
+- **Console `DEFAULT_MAP` drift:** Marquee + Changebase are indexed in the
+  brain but unmapped in SYSOI `src/modules/brain/repos.ts` → source enrichment
+  silently dead for them. Patch via `BRAIN_REPO_MAP` env (no deploy) or a
+  one-line PR.
+- **Forge-LLM + the self-host box: abandoned, correctly.** The value was never
+  in owning the window or the weights.
+
+## Next actions
+
+1. [ ] **Phase 0 voice wire** → SYSOI draft PR off `development`.
+2. [ ] **Seed `evals/`** with the first ~20 scenarios (Brian picks the archive
+   cuts; a session formats them).
+3. [ ] **`docs/TRAINING-PAIRS.md`** design doc → SYSOI draft PR (Phase 1
+   schema before code).
+4. [ ] **`BRAIN_REPO_MAP`** patch for Marquee/Changebase.
+5. [ ] **Content-Brain README** "read files directly" line.
