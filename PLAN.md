@@ -8,7 +8,7 @@ Doc roles in this repo: **CLAUDE.md** = how to work here · **WORKING.md** =
 fast-changing session handoff · **PLAN.md** (this file) = why + what's next.
 If it's not in a markdown file, it never happened.
 
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 ---
 
@@ -26,7 +26,7 @@ The stack, by layer:
 | **Engine** | Claude via SYSOI `lib/claude.ts` (`deep`/`reason`/`fast` tiers) | Live |
 | **Memory** | Sandbox Brain (this repo → GitNexus @ `sandbox-brain.onrender.com`, MCP `/api/mcp`) | Live; 9 repos indexed |
 | **Knowledge** | Content-Brain (curated markdown: companies · customers · industries · personas · prospects · voice) | Seeded (27 files); indexed WITHOUT embeddings (deliberate — curate first) |
-| **Voice / judgment** | `voice/brand-voice.md` + `personas/` | Exists; **not yet wired into the console chat** |
+| **Voice / judgment** | `voice/brand-voice.md` + `personas/` | **Wired** — SYSOI #499 (strategist persona + voice prepend + persona matcher), promoted to prod via #500/#502 |
 | **Console** | SYSOI `src/modules/brain/` — grounded chat + propose-edit (draft PR) + research-propose | Live on `main` (verified byte-level 2026-07-01) |
 | **Audit** | `agent_runs` (model/tokens/latency/status on every AI call) | Live — telemetry only, not yet training pairs |
 | **Parallel proof** | Forge Intelligence (Forge-Scrape → brand profile → compounding context → AI-citable content) | Live — same architecture, different domain |
@@ -105,10 +105,15 @@ Named for completeness. Most people never need the rung.
 
 ## Next actions
 
-1. [ ] **Phase 0 voice wire** → SYSOI draft PR off `development`.
+1. [x] **Phase 0 voice wire** — SYSOI #499 merged; promoted to `main` (#500/#502). Live in prod.
 2. [ ] **Seed `evals/`** with the first ~20 scenarios (Brian picks the archive
-   cuts; a session formats them).
-3. [ ] **`docs/TRAINING-PAIRS.md`** design doc → SYSOI draft PR (Phase 1
-   schema before code).
+   cuts; a session formats them). Scaffold: SYSOI #503 (README contract +
+   `_TEMPLATE.md` + synthetic EVAL-000). Source: the post-project debriefs +
+   the Slack assistant that knows the war stories — assistant nominates,
+   Brian selects, sessions format.
+3. [x] **`docs/TRAINING-PAIRS.md`** design doc — SYSOI #501 merged. The
+   Phase 1 schema PR is now unblocked.
 4. [ ] **`BRAIN_REPO_MAP`** patch for Marquee/Changebase.
-5. [ ] **Content-Brain README** "read files directly" line.
+5. [x] **Content-Brain README** — already true on `main`: the consolidated
+   README states keyword+graph / no embeddings in two places. Fixed by a
+   parallel session before this list existed.
