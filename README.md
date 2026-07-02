@@ -1,4 +1,4 @@
-# gitnexus-mcp (self-hosted, fully-pinned fork)
+# Sandbox gitnexus-mcp (self-hosted, fully-pinned fork)
 
 A self-hosted, **fully-pinned** fork of the Docker recipe
 [`mekayelanik/gitnexus-mcp`](https://hub.docker.com/r/mekayelanik/gitnexus-mcp)
