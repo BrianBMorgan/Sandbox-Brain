@@ -1097,6 +1097,26 @@ main() {
         gosu node git config --global --add safe.directory '*'
     fi
 
+    # One server-side git credential (fix for the 2026-07-02 fleet index
+    # extinction): when GIT_CREDENTIAL_TOKEN is set, clones and pulls of
+    # private GitHub repos authenticate through this helper instead of tokens
+    # baked into each remote URL. Rotation becomes "update one env var on the
+    # service" rather than re-seeding nine remotes. The helper reads the env
+    # at use time, so the token is never written to disk; embedded-credential
+    # URLs still take precedence, so existing remotes keep working unchanged.
+    # Configured for both root and the node user (analyze/serve run via gosu,
+    # which preserves the environment).
+    if [[ -n "${GIT_CREDENTIAL_TOKEN:-}" ]]; then
+        local git_cred_helper='!f() { echo "username=x-access-token"; echo "password=${GIT_CREDENTIAL_TOKEN}"; }; f'
+        git config --global credential.helper "$git_cred_helper"
+        if [ "$(id -u)" -eq 0 ]; then
+            gosu node git config --global credential.helper "$git_cred_helper"
+        fi
+        echo "Git credential helper enabled: private clones/pulls authenticate via GIT_CREDENTIAL_TOKEN"
+    else
+        echo "Note: GIT_CREDENTIAL_TOKEN not set — private repos need tokens embedded in their remote URLs" >&2
+    fi
+
     # GitNexus-specific: clean, analyze, wiki
     echo "=========================================="
     echo "GitNexus Repository Analysis Phase"
