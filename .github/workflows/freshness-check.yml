@@ -1,0 +1,72 @@
+name: Brain Freshness Check
+
+# Read-only DETECTOR for the class of silent loss that hid SYSOI.ai's
+# disappearance: a repo can drop out of the brain's registry while the refresh
+# sweeps keep reporting green (see the orphaned-clone self-heal in
+# scripts/refresh-brain.sh). This job confirms every repo in that script's
+# REPOS list is actually present in GET /api/repos and FAILS the run if any is
+# missing — a red run here is the alarm bell (GitHub notifies on scheduled-run
+# failures), independent of what the sweeps claim.
+#
+# Deliberately does NOT heal anything: the sweep owns healing. If the healer is
+# broken, the detector must scream rather than paper over it. Needs no secret —
+# GET /api/repos is unauthenticated by design.
+#
+# indexedAt ages are printed for context but NOT alerted on: a repo with no new
+# commits legitimately keeps an old indexedAt (e.g. Pitch-Box), so age alone
+# would false-alarm. Presence in the registry is the load-bearing check.
+#
+# 21:00 UTC = after both backup sweeps (GTM 14:00, main 18:00) have landed,
+# so a miss here means the whole day's four refresh opportunities left the
+# registry incomplete.
+
+on:
+  schedule:
+    - cron: "0 21 * * *"   # 21:00 UTC nightly — after the 14:00 + 18:00 backup sweeps
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Verify every REPOS entry is registered in the brain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Compare REPOS list against GET /api/repos
+        run: |
+          set -uo pipefail
+          BRAIN="https://sandbox-brain.onrender.com"
+
+          # Expected repo names: the URL basenames of the REPOS list in the
+          # refresh script — parsed at runtime so this check can never drift
+          # from the roster.
+          mapfile -t EXPECTED < <(grep -oE 'https://github\.com/[^"]+\.git' scripts/refresh-brain.sh \
+                                  | sed -E 's#.*/##; s#\.git$##')
+          [ "${#EXPECTED[@]}" -gt 0 ] || { echo "::error::could not parse REPOS from scripts/refresh-brain.sh"; exit 1; }
+          echo "Expecting ${#EXPECTED[@]} repos: ${EXPECTED[*]}"
+
+          # Registry state (open endpoint). A brain that is down/OOM is a real
+          # alert too — but distinguish it from "repo missing" in the message.
+          reg=$(curl -sS -m 30 "$BRAIN/api/repos" 2>/dev/null) || reg=""
+          if ! printf '%s' "$reg" | jq -e 'type == "array"' >/dev/null 2>&1; then
+            echo "::error::brain unreachable or GET /api/repos returned non-JSON — cannot verify registry (brain down/OOM?)"
+            exit 1
+          fi
+
+          echo; echo "=== registry (informational) ==="
+          printf '%s' "$reg" | jq -r '.[] | "\(.name)  emb=\(.stats.embeddings // 0)  commit=\(.lastCommit[0:10] // \"?\")  indexedAt=\(.indexedAt)"'
+
+          echo; missing=0
+          for name in "${EXPECTED[@]}"; do
+            if printf '%s' "$reg" | jq -e --arg n "$name" 'any(.[]; .name == $n)' >/dev/null; then
+              echo "OK      $name"
+            else
+              echo "::error::MISSING from brain registry: $name (sweeps may be false-green — see the orphaned-clone note in scripts/refresh-brain.sh)"
+              missing=$((missing+1))
+            fi
+          done
+
+          [ "$missing" -eq 0 ] && { echo; echo "RESULT: all ${#EXPECTED[@]} repos registered"; exit 0; }
+          echo; echo "RESULT: $missing repo(s) missing from the registry"; exit 1
