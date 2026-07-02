@@ -15,10 +15,9 @@ intelligence MCP server) behind HAProxy. Upstream's `mcp-proxy` stdio↔HTTP
 bridge has been **removed** from this fork — MCP is served in-process by
 `gitnexus serve` at `/api/mcp` (one canonical URL; see "Using the brain").
 
-> **In-flight work:** cross-repo brain initiatives currently in progress (e.g.
-> the Content-Brain `PROSPECTS/` directory) are tracked in
-> [`WORKING.md`](WORKING.md) — a session-handoff doc so the next session resumes
-> without re-discovery.
+> **Current state:** cross-repo brain state (what shipped, what's in flight) is
+> tracked in [`WORKING.md`](WORKING.md) — a session-handoff doc so the next
+> session resumes without re-discovery.
 
 ---
 
@@ -27,7 +26,7 @@ bridge has been **removed** from this fork — MCP is served in-process by
 | Aspect | Upstream `mekayelanik/gitnexus-mcp` | This fork |
 |:-------|:------------------------------------|:----------|
 | Registry | Docker Hub (multi-registry matrix) | **GHCR only** — `ghcr.io/brianbmorgan/sandbox-brain` |
-| CI | Schedule + `repository_dispatch` auto-tracking, multi-arch matrix, registry sync, Docker Hub README sync | **One** `workflow_dispatch`-only workflow ([`.github/workflows/build.yml`](.github/workflows/build.yml)) |
+| CI | Schedule + `repository_dispatch` auto-tracking, multi-arch matrix, registry sync, Docker Hub README sync | **One** `workflow_dispatch`-only **build** workflow ([`.github/workflows/build.yml`](.github/workflows/build.yml)); the other workflows (`refresh-cron.yml`, `refresh-gtm.yml`, `freshness-check.yml`) are operational index refresh/verification, never image builds |
 | Auto-tracking | Monitors npm for new gitnexus releases and auto-builds | **None** — no schedule, no auto-check, no Renovate |
 | Architectures | `amd64` + `arm64` | **`amd64` only** (Render runs amd64) |
 | Base image | `node:22-trixie-slim` (floating tag) | pinned by `@sha256` digest |
@@ -168,13 +167,16 @@ Mutating routes and the MCP endpoint require `Authorization: Bearer <API_KEY>`;
   Semantic-by-meaning search works here because the MCP path lazy-loads the baked
   embedding model.
   > `/api/mcp` is the single canonical MCP URL. The old `/mcp` route (an
-  > `mcp-proxy` bridge that 404'd) was **removed** from this fork — see
-  > **issue #7**.
+  > `mcp-proxy` bridge that 404'd) was **removed** from this fork (PR #17,
+  > closing issue #7).
 - **Indexing:** `POST /api/analyze {"url":"<git-url>","embeddings":true}`, then
   poll `GET /api/analyze/{jobId}` to `complete`/`failed`. `"embeddings":true` is
   **required** — without it the repo indexes but with `embeddings:0` and no
-  semantic search. `scripts/refresh-brain.sh` (nightly cron) keeps the configured
-  repos indexed and embedded.
+  semantic search. `scripts/refresh-brain.sh` keeps the 9 configured
+  repos indexed and embedded — swept by `refresh-cron.yml` (08:00 + 18:00 UTC
+  backup; skips Sandbox-GTM) and `refresh-gtm.yml` (02:00 + 14:00 UTC, GTM
+  solo), while `freshness-check.yml` (21:00 UTC, read-only) verifies every
+  roster repo is present in the registry and goes red if one vanishes.
 - **Inspect:** `GET /api/repos` → each repo's stats, including the `embeddings`
   count (a quick way to confirm semantic data is present).
 
@@ -206,9 +208,11 @@ This fork **preserves all upstream licensing and attribution** — see
   > Required Notice: Copyright Abhigyan Patwari
   > (https://github.com/abhigyanpatwari/GitNexus)
 
-This fork changes only the build/distribution plumbing (pinning + GHCR-only CI)
-plus the build-time embedding-model bake. It does not modify the GitNexus
-application or its license, and it does not relicense MekayelAnik's recipe.
+This fork changes the build/distribution plumbing (pinning + GHCR-only CI), the
+build-time embedding-model bake, the mcp-proxy removal (MCP served in-process
+at `/api/mcp`), and the build-time `git-clone.js` incremental-refresh patch. It
+does not otherwise modify the GitNexus application or its license, and it does
+not relicense MekayelAnik's recipe.
 
 ---
 
