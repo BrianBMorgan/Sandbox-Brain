@@ -13,12 +13,9 @@ services:
       - ENABLE_HTTPS=false
       - HTTP_VERSION_MODE=auto
       - DATA_DIR=/data
-      # mcp-proxy session model. Stateful by default — one stdio child per
-      # Mcp-Session-Id, reused across requests. Sessions persist until the
-      # client explicitly closes them (no server-side TTL). Set to "true" only
-      # if full per-request isolation is required (memory-hostile).
-      - MCP_PROXY_STATELESS=false
-      # Cap virtual memory of each GitNexus stdio child via prlimit --as
+      # (mcp-proxy was removed from this fork — MCP is served in-process by
+      # `gitnexus serve` at /api/mcp, so there is no MCP_PROXY_* surface.)
+      # Cap virtual memory of the GitNexus processes via prlimit --as
       # (MiB; 0 disables). KEEP AT 0 unless you know what you are doing:
       # LadybugDB (the embedded graph backend) mmaps a ~16 GiB virtual
       # address space at startup. Any cap below 16384 will fail with

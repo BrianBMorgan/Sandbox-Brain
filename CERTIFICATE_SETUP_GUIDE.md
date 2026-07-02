@@ -259,9 +259,9 @@ https://103.102.201.202:8010/api/mcp
 
 > This image serves the MCP endpoint over StreamableHTTP at **`/api/mcp`**
 > (in-process in `gitnexus serve`) — the verified working path on the Sandbox
-> Brain deploy. The separate `/mcp` route (the `mcp-proxy` bridge) may return
-> **404** depending on wiring (it does on the Render deploy — see issue #7), so
-> prefer `/api/mcp`. Clients send `Authorization: Bearer <API_KEY>`.
+> Brain deploy. The old `/mcp` route (an `mcp-proxy`
+> bridge) was **removed from this fork** (PR #17) — `/api/mcp` is the only MCP
+> URL. Clients send `Authorization: Bearer <API_KEY>`.
 
 ---
 
@@ -316,10 +316,11 @@ Fix:
 
 ### Problem: MCP endpoint returns `404`
 
-- Using the `/mcp` proxy route instead of `/api/mcp`
+- Using the old `/mcp` route — the `mcp-proxy` bridge was removed from this
+  fork (PR #17); only `/api/mcp` exists
 
 Fix:
-- point the client at `https://<host>:<port>/api/mcp` (see issue #7)
+- point the client at `https://<host>:<port>/api/mcp`
 
 ---
 
