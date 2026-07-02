@@ -73,7 +73,7 @@ paths**: Dispatch drafts, recaps, mini-dossiers — pennies per call, owned
 weights. Frontier stays rented for the reasoning tiers. **Portfolio, not
 replacement.** Same visit: bump the embedder pin
 (`snowflake-arctic-embed-xs` → a larger sibling; see PINS.md), re-embed, and
-run the ten known-answer retrieval test on Content-Brain the day embeddings
+run the ten known-answer retrieval tests on Content-Brain the day embeddings
 flip on.
 
 ### Phase 3 — provenance discipline (free, load-bearing, continuous)
