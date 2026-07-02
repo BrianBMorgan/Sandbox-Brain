@@ -44,6 +44,27 @@ that.**
 
 ---
 
+## IN FLIGHT (opened 2026-07-02): strategist-intelligence roadmap — see PLAN.md
+
+**`PLAN.md` now exists in this repo** — the slow-changing strategy for the
+event-strategist intelligence: rent the engine, own memory / voice / judgment /
+the data flywheel. Five-phase ladder: voice wire -> eval set -> data engine
+(draft-vs-human-final capture) -> LoRA at 1-5k pairs -> continued pretraining
+(probably never). This file stays the fast-changing handoff; the strategy
+lives there.
+
+**Immediate next (Phase 0):**
+
+1. **Voice wire** — SYSOI `src/modules/brain/chat.ts`: Content-Brain queries
+   get the strategist persona + `voice/brand-voice.md` (+ relevant
+   `personas/*.md`) prepended to grounding; today the console answers as "a
+   senior engineer." Draft PR off SYSOI `development` per that repo's workflow.
+2. **Eval set** — seed SYSOI `evals/` with ~20 held-out brief->output scenarios
+   (Brian picks the cuts). NOT Content-Brain — real briefs aren't public-safe
+   (Rule 0).
+
+---
+
 ## DONE: Content-Brain built out (see that repo for detail)
 
 - **`prospects/`** (lowercase — renamed from `PROSPECTS/` in Content-Brain
