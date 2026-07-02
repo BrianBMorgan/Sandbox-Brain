@@ -1097,6 +1097,33 @@ main() {
         gosu node git config --global --add safe.directory '*'
     fi
 
+    # One server-side git credential (fix for the 2026-07-02 fleet index
+    # extinction): when GIT_CREDENTIAL_TOKEN is set, clones and pulls of
+    # private GitHub repos authenticate through this helper instead of tokens
+    # baked into each remote URL. Rotation becomes "update one env var on the
+    # service" rather than re-seeding nine remotes. The helper reads the env
+    # at use time, so the token is never written to disk; embedded-credential
+    # URLs still take precedence, so existing remotes keep working unchanged.
+    # Configured for both root and the node user (analyze/serve run via gosu,
+    # which preserves the environment).
+    if [[ -n "${GIT_CREDENTIAL_TOKEN:-}" ]]; then
+        # export: no-op when the var arrives via the container environment (the
+        # only production path), but makes the contract explicit for odd local
+        # invocations. get-only guard: helpers are also called for store/erase,
+        # where output is ignored — answer only when asked, and exit 0 either
+        # way (an && guard would exit 1 on store/erase, which newer gits warn
+        # about). printf: /bin/sh is dash here, whose echo eats backslashes.
+        export GIT_CREDENTIAL_TOKEN
+        local git_cred_helper='!f() { if [ "$1" = "get" ]; then printf "username=x-access-token\npassword=%s\n" "${GIT_CREDENTIAL_TOKEN}"; fi; }; f'
+        git config --global credential.helper "$git_cred_helper"
+        if [ "$(id -u)" -eq 0 ]; then
+            gosu node git config --global credential.helper "$git_cred_helper"
+        fi
+        echo "Git credential helper enabled: private clones/pulls authenticate via GIT_CREDENTIAL_TOKEN"
+    else
+        echo "Note: GIT_CREDENTIAL_TOKEN not set — private repos need tokens embedded in their remote URLs" >&2
+    fi
+
     # GitNexus-specific: clean, analyze, wiki
     echo "=========================================="
     echo "GitNexus Repository Analysis Phase"
