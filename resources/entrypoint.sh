@@ -1107,7 +1107,14 @@ main() {
     # Configured for both root and the node user (analyze/serve run via gosu,
     # which preserves the environment).
     if [[ -n "${GIT_CREDENTIAL_TOKEN:-}" ]]; then
-        local git_cred_helper='!f() { echo "username=x-access-token"; echo "password=${GIT_CREDENTIAL_TOKEN}"; }; f'
+        # export: no-op when the var arrives via the container environment (the
+        # only production path), but makes the contract explicit for odd local
+        # invocations. get-only guard: helpers are also called for store/erase,
+        # where output is ignored — answer only when asked, and exit 0 either
+        # way (an && guard would exit 1 on store/erase, which newer gits warn
+        # about). printf: /bin/sh is dash here, whose echo eats backslashes.
+        export GIT_CREDENTIAL_TOKEN
+        local git_cred_helper='!f() { if [ "$1" = "get" ]; then printf "username=x-access-token\npassword=%s\n" "${GIT_CREDENTIAL_TOKEN}"; fi; }; f'
         git config --global credential.helper "$git_cred_helper"
         if [ "$(id -u)" -eq 0 ]; then
             gosu node git config --global credential.helper "$git_cred_helper"
