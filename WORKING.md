@@ -48,9 +48,7 @@ that.**
 
 **`PLAN.md` now exists in this repo** — the slow-changing strategy for the
 event-strategist intelligence: rent the engine, own memory / voice / judgment /
-the data flywheel. Five-phase ladder: voice wire -> eval set -> data engine
-(draft-vs-human-final capture) -> LoRA at 1-5k pairs -> continued pretraining
-(probably never). This file stays the fast-changing handoff; the strategy
+the data flywheel. Five-phase ladder: Phase 0 (voice wire + evals) -> Phase 1 (data engine) -> Phase 2 (LoRA) -> Phase 3 (provenance) -> Phase 4 (pretraining). This file stays the fast-changing handoff; the strategy
 lives there.
 
 **Immediate next (Phase 0):**
