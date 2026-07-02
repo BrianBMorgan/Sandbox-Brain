@@ -56,7 +56,10 @@ jobs:
           fi
 
           echo; echo "=== registry (informational) ==="
-          printf '%s' "$reg" | jq -r '.[] | "\(.name)  emb=\(.stats.embeddings // 0)  commit=\(.lastCommit[0:10] // \"?\")  indexedAt=\(.indexedAt)"'
+          # Non-fatal by design: a formatting hiccup here must never kill the
+          # load-bearing presence check below (the -e shell would otherwise
+          # abort the job on a jq compile error, as run #1 proved).
+          printf '%s' "$reg" | jq -r '.[] | "\(.name)  emb=\(.stats.embeddings // 0)  commit=\(.lastCommit // "?" | .[0:10])  indexedAt=\(.indexedAt)"' || true
 
           echo; missing=0
           for name in "${EXPECTED[@]}"; do
