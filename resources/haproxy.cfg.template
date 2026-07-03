@@ -39,10 +39,13 @@ frontend mcp_frontend
     # Mutating REST routes re-gated by API_KEY in the generated auth block (method-scoped
     # so GET /api/repos and GET /api/analyze/{job} stay open). The /api/* exemption
     # would otherwise leave POST /api/analyze + DELETE /api/repo unauthenticated.
-    # analyze: path_beg is fail-closed for any future POST under /api/analyze/*.
-    # repo: exact path so it can never collide with the open GET /api/repos list.
+    # Both use path_beg + method scoping. is_repo_path matching /api/repos too is
+    # harmless: it's only referenced in the METH_DELETE deny rule, and there is no
+    # DELETE /api/repos route, so the open GET /api/repos list is never affected.
+    # normalize-uri (below) first canonicalizes // and dot-segments so these
+    # prefixes can't be dodged via path-normalization mismatches with the backend.
     acl is_analyze_path path_beg /api/analyze
-    acl is_repo_path path /api/repo
+    acl is_repo_path path_beg /api/repo
 
     # Paths exempt from API key auth
     acl is_web_ui path /
@@ -50,6 +53,14 @@ frontend mcp_frontend
 
     # Define ACL that's always false (for CORS disabled scenario)
     acl always_false always_false
+
+    # Canonicalize the request path BEFORE any path-based ACL/auth/routing decision
+    # so HAProxy sees the same path the backend (Express, non-strict routing) will
+    # resolve to. Without this, DELETE /api/repo/ , /api//repo , /api/repo/x/.. etc.
+    # slip past the exact/prefix ACLs and reach the mutating handlers UNAUTHENTICATED.
+    http-request normalize-uri path-merge-slashes
+    http-request normalize-uri path-strip-dot
+    http-request normalize-uri path-strip-dotdot
 
     # Local health endpoint answered directly by HAProxy, before IP/auth/rate
     # filters, so Docker's localhost healthcheck always succeeds regardless of
