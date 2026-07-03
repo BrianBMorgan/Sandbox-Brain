@@ -116,3 +116,27 @@ lives there.
 - **Mailforge:** `Sandbox-Group-LLC/ForgeOS` branch `apps/mailforge` — outbound
   engine; brand-profile pull in `lib/forge.js`, pitch engine in `lib/pitch.js` /
   `lib/autopitch.js`. Deploys to `mailforge.forge-os.ai`.
+
+## 2026-07-02 — Markdown repos cannot take embeddings (upstream gap, loud by design)
+
+Attempted the Content-Brain embeddings flip (the corpus outgrew the July-1
+deferral: 91 files and the stacker about to add ~58 more). Result, verbatim:
+"Embedding generation completed without persisted embeddings. The index was
+not registered to avoid silently reporting embeddings: 0."
+
+Diagnosis: the embedder covers code symbols; a markdown-only repo yields zero
+embeddable units, so generation "completes" with nothing to persist and the
+registration guard (correctly) refuses. Consequences:
+
+- Content-Brain semantic retrieval is blocked UPSTREAM, not by a flag. The
+  July-1 "taxonomy IS the retrieval system" posture is involuntarily true.
+- Keyword+graph retrieval verified healthy post-restore (definitions come
+  back for conceptual queries; ranking is lexical, so synonym asks drift).
+- The real fix is teaching the embedder to embed File/Section nodes for
+  markdown repos: a fork change here, not a SYSOI change. Candidate for the
+  PLAN alongside the Phase-2 embedder pin bump.
+- Until then: dense headings, index cards, and cross-links in Content-Brain
+  are literally the search index. Write books accordingly.
+
+Content-Brain was restored to the working embeddings:false config within the
+minute (91f/798n). No data lost; the failed flip never registered.
