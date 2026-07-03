@@ -546,11 +546,19 @@ generate_haproxy_config() {
     # /api/* is the Web UI backend — exempt from API_KEY (protected by WEB_USERNAME if set)
     # EXCEPT the MCP endpoint (/api/mcp): it carries Bearer auth, so enforce API_KEY
     # for is_mcp_path explicitly (same posture the old /mcp route had).
+    # Also enforce API_KEY for the MUTATING REST routes that the /api/* exemption
+    # would otherwise leave open: POST /api/analyze and DELETE /api/repo. Method-
+    # scoped so the read endpoints (GET /api/repos, GET /api/analyze/{job}) stay
+    # open; is_repo_path is an exact path match so it can never touch /api/repos.
     http-request deny deny_status 401 content-type \"application/json\" string '{\"error\":\"Unauthorized\",\"message\":\"Valid API key required\"}' if !is_health_check !is_web_ui !is_api_path !auth_header_present
     http-request deny deny_status 401 content-type \"application/json\" string '{\"error\":\"Unauthorized\",\"message\":\"Valid API key required\"}' if is_mcp_path !auth_header_present
+    http-request deny deny_status 401 content-type \"application/json\" string '{\"error\":\"Unauthorized\",\"message\":\"Valid API key required\"}' if METH_POST is_analyze_path !auth_header_present
+    http-request deny deny_status 401 content-type \"application/json\" string '{\"error\":\"Unauthorized\",\"message\":\"Valid API key required\"}' if METH_DELETE is_repo_path !auth_header_present
     http-request deny deny_status 401 content-type \"application/json\" string '{\"error\":\"Unauthorized\",\"message\":\"Valid API key required\"}' if is_health_check !is_localhost !auth_header_present
     http-request deny deny_status 403 content-type \"application/json\" string '{\"error\":\"Forbidden\",\"message\":\"Invalid API key\"}' if !is_health_check !is_web_ui !is_api_path auth_header_present !auth_valid
     http-request deny deny_status 403 content-type \"application/json\" string '{\"error\":\"Forbidden\",\"message\":\"Invalid API key\"}' if is_mcp_path auth_header_present !auth_valid
+    http-request deny deny_status 403 content-type \"application/json\" string '{\"error\":\"Forbidden\",\"message\":\"Invalid API key\"}' if METH_POST is_analyze_path auth_header_present !auth_valid
+    http-request deny deny_status 403 content-type \"application/json\" string '{\"error\":\"Forbidden\",\"message\":\"Invalid API key\"}' if METH_DELETE is_repo_path auth_header_present !auth_valid
     http-request deny deny_status 403 content-type \"application/json\" string '{\"error\":\"Forbidden\",\"message\":\"Invalid API key\"}' if is_health_check !is_localhost auth_header_present !auth_valid"
     else
         api_key_check="    # API Key authentication disabled - all requests allowed"
