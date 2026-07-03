@@ -106,11 +106,10 @@ Named for completeness. Most people never need the rung.
 ## Next actions
 
 1. [x] **Phase 0 voice wire** — SYSOI #499 merged; promoted to `main` (#500/#502). Live in prod.
-2. [ ] **Seed `evals/`** with the first ~20 scenarios (Brian picks the archive
-   cuts; a session formats them). Scaffold: SYSOI #503 (README contract +
-   `_TEMPLATE.md` + synthetic EVAL-000). Source: the post-project debriefs +
-   the Slack assistant that knows the war stories — assistant nominates,
-   Brian selects, sessions format.
+2. [x] **Seed `evals/`** — done 2026-07-02: Brian authored EVAL-001..020
+   (the archive cuts) on SYSOI `development`. His fifteen set a richer rubric
+   format than the template; a normalization PR aligned the template + the
+   early five to it. Per this plan: ~20 unblocks Phase 1.
 3. [x] **`docs/TRAINING-PAIRS.md`** design doc — SYSOI #501 merged. The
    Phase 1 schema PR is now unblocked.
 4. [ ] **`BRAIN_REPO_MAP`** patch for Marquee/Changebase.
