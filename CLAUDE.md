@@ -2,7 +2,7 @@
 
 Guidance for working in this repo — the **Sandbox Brain**. It is a self-hosted, **fully-pinned** fork of the [`mekayelanik/gitnexus-mcp`](https://github.com/MekayelAnik/GitNexus-docker) Docker recipe that packages [GitNexus](https://github.com/abhigyanpatwari/GitNexus) (a code-intelligence MCP server) behind HAProxy, and ships it as one image to `ghcr.io/brianbmorgan/sandbox-brain`, deployed on Render at `https://sandbox-brain.onrender.com`.
 
-This repo has **no application source** — no `server.js`, no JS app, no build step of its own. It is a Docker **build recipe** + shell tooling. Read alongside **README.md** (what changed vs upstream, build + deploy), **PINS.md** (every pinned dependency + how it was resolved), **docker-compose.yml** (the runtime env-var surface), and **CERTIFICATE_SETUP_GUIDE.md** (TLS).
+This repo has **no application source** — no `server.js`, no JS app, no build step of its own. It is a Docker **build recipe** + shell tooling. Read alongside **README.md** (what changed vs upstream, build + deploy), **PINS.md** (every pinned dependency + how it was resolved), **docker-compose.yml** (the runtime env-var surface), **CERTIFICATE_SETUP_GUIDE.md** (TLS), and **RUNTIME-TOPOLOGY.md** (how the live deploy is actually wired — entrypoint vs the historical override, the HAProxy `API_KEY` auth gate + matrix, `HOME=/data` clone persistence, and the operational gotchas incl. the fact that one-off Jobs don't mount `/data`; it supersedes this file where they conflict on live-deploy specifics).
 
 ## Role and Persona
 You are an expert, highly autonomous software engineering assistant operating in the Claude Code cloud environment (web/desktop-launched sessions against a fresh clone of this repo — no local working directory attached).
@@ -25,7 +25,7 @@ This repo is **shell + Docker + YAML**, not an app. Hold to its conventions:
 3. **`PINS.md`** — the current pins and the exact commands that resolved them.
 
 ## What the Brain does (runtime)
-- Holds a **persistent, multi-repo code-graph index** on a Render disk at `/data` (registry under `~/.gitnexus`, per-repo clones under `/data/.gitnexus/repos/<name>`).
+- Holds a **persistent, multi-repo code-graph index** on a Render disk at `/data` — both the registry (`GITNEXUS_HOME=/data/.gitnexus`) and the per-repo clones (`/data/.gitnexus/repos/<name>`) live on that disk. The clone dir is resolved from `$HOME` (not `GITNEXUS_HOME`), so the serve process runs with **`HOME=/data`** and the entrypoint **chowns `/data/.gitnexus` to the node user** — without both, clones land on an ephemeral path (`/home/node`) and are lost on redeploy (which double-registers every repo), and refreshes fail `git reset` with EACCES on `.git/index.lock`. Full mechanism + the git-reset-128 diagnosis: RUNTIME-TOPOLOGY.md "Clone persistence".
 - **Request routing (HAProxy fronts everything on the service port):**
   - `/api/*`  → `gitnexus serve` (the Node API server; it also mounts the MCP server in-process at `/api/mcp` — see "Consuming the brain" below).
   - MCP is **in-process only** at `/api/mcp` — the upstream `mcp-proxy` `/mcp` bridge was **removed** from this fork (PR #17, closed issue #7); there is no `/mcp` route. HAProxy enforces the `API_KEY` Bearer on `/api/mcp` at the edge.
@@ -44,6 +44,7 @@ This repo is **shell + Docker + YAML**, not an app. Hold to its conventions:
 This is how Claude sessions, agents, and any future chatbot should query the brain.
 - **Endpoint:** `https://sandbox-brain.onrender.com/api/mcp` — StreamableHTTP, in-process inside `gitnexus serve` (the boot log says `MCP HTTP endpoints mounted at /api/mcp`).
 - **Auth:** `Authorization: Bearer $BRAIN_API_KEY`.
+- **Handshake:** StreamableHTTP is session-based — `initialize` first (capture the `Mcp-Session-Id` response header), send `notifications/initialized`, then `tools/call` carrying that header. A bare `tools/call` without the handshake returns `-32000 Server not initialized`.
 - **Tools:** `query` (semantic + graph retrieval — the main one), `cypher`, `context`, `impact`, `route_map`, `detect_changes`, `rename`, and more (`tools/list` for the full set). Call `query` with `{ "repo": "<name>", "query": "<natural-language>" }`.
 - **Semantic works here** because the MCP query path lazy-loads the baked embedding model (cache hit, no egress) to embed the query at request time — unlike the REST `/api/search` path. Verified: a meaning-based query with none of the doc's literal words surfaces the right files.
 - **`/api/mcp` is the only MCP URL** — the old mcp-proxy `/mcp` route was removed from this fork (PR #17). There is no other MCP path.
@@ -64,7 +65,7 @@ Never paper over any of these by hand-retrying — the heals are already in the 
 - Build is **manual only**: Actions → "Build and push gitnexus-mcp (GHCR)" (`build.yml`, `workflow_dispatch`). It writes `build_data/` from the pinned values, runs `DockerfileModifier.sh`, then `docker buildx build --platform linux/amd64 --push` to `ghcr.io/brianbmorgan/sandbox-brain:<gitnexus_version>` (+ `:latest`). No schedule, no Docker Hub, no multi-arch, no Renovate.
 - **The build bakes the embedding model into the image** (`DockerfileModifier.sh`): it analyzes a throwaway real-code repo with `gitnexus analyze --embeddings` so the model downloads into `/home/node/.cache/huggingface` (the exact `HF_HOME` the entrypoint exports), and a `find … '*.onnx' | grep -q .` guard **fails the build** if the model didn't land. This is what lets the egress-locked Render service produce embeddings at all. Full why in PINS.md "Embedding model".
 - **A pin bump is a deliberate 3-place edit** — PINS.md (value + date + source) + the fallback in `DockerfileModifier.sh` + the `env:` value / input default in `build.yml` — then re-run the workflow. A one-off gitnexus version can instead be passed as the `gitnexus_version` dispatch input without editing files. See README "How to bump a pin safely."
-- **Deploy on Render is image-pinned, not tag-tracking.** The service can be pinned to a specific image digest with `autoDeploy:no`, so pushing a new `:tag` does **not** redeploy by itself — you must trigger a deploy pointing at the new image. (This bit us once: redeploys kept running an old digest. If "deploy does nothing," check the service's pinned image vs the tag you just pushed.)
+- **Deploy on Render is image-pinned, not tag-tracking.** The service can be pinned to a specific image digest with `autoDeploy:no`, so pushing a new `:tag` does **not** redeploy by itself — you must trigger a deploy pointing at the new image. (This bit us once: redeploys kept running an old digest. If "deploy does nothing," check the service's pinned image vs the tag you just pushed.) Deploy by explicit digest to dodge the stale-tag footgun — see RUNTIME-TOPOLOGY.md gotcha #4.
 
 ## Branch and PR workflow (non-negotiable)
 - **`main`-only.** There is no `development` branch. Render deploys the GHCR image; `main` is the source of truth for the recipe.
@@ -77,6 +78,7 @@ Never paper over any of these by hand-retrying — the heals are already in the 
 - **Secrets live in the service's own environment** — chiefly `API_KEY` (the brain's auth gate; clients use the same value as `BRAIN_API_KEY`). No linked Environment Group.
 - **Never use Render's bulk env-var `PUT`** — it REPLACES ALL VARS. Use the dashboard or a single-key PATCH.
 - **Render REST API is available** to a session (Bearer `RENDER_API_KEY` from the cloud env) for inspecting the service, deploys, env vars, and logs — useful when "is it even deployed?" needs a definitive answer rather than dashboard guesswork. Service id: `srv-d8dgc268bjmc73a5lup0`.
+- **No shell tab; one-off Jobs don't see `/data`.** Render one-off Jobs run with the service env but in a **separate instance that does NOT mount the persistent disk** — `/data` is empty there. Use Jobs for env/network probes; use the temporary-`dockerCommand`-then-deploy pattern (runs in the web container, which has the disk) for anything that must read/write the real `/data`. Both `startCommand` and `dockerCommand` are argv-split without shell parsing (no `sh -c '…'` chaining) — one command per run. Full pattern + the destructive-`rm` guardrails: RUNTIME-TOPOLOGY.md "Operating this service".
 - Runtime config is the env surface in `docker-compose.yml` (ports, transport, `ANALYZE_*`, `GITNEXUS_MAX_MEM_MB`, HAProxy caps, `API_KEY`). Keep repo mounts **writable** — a `:ro` mount breaks skills/embeddings, which write into the clone.
 
 ## PR activity subscriptions
