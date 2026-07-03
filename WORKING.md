@@ -116,3 +116,25 @@ lives there.
 - **Mailforge:** `Sandbox-Group-LLC/ForgeOS` branch `apps/mailforge` — outbound
   engine; brand-profile pull in `lib/forge.js`, pitch engine in `lib/pitch.js` /
   `lib/autopitch.js`. Deploys to `mailforge.forge-os.ai`.
+
+## 2026-07-03 — SYSOI.ai kept bombing out of the fleet (poisoned per-URL credential)
+
+Symptom: SYSOI.ai repeatedly failed re-analyze with "Invalid username or
+token" while all nine other repos held. Ruled out in order: disk (1.1GB of
+10GB), OOM (no events), the credential helper itself (Pitch-Box plain-URL
+clone succeeded on the same live image, same token), and every candidate
+token (org fine-grained, classic, and the box's GIT_CREDENTIAL_TOKEN all
+ls-remote SYSOI.ai fine from outside).
+
+Diagnosis: credential state on the box scoped to that one URL — a stored
+dead credential (store helper file and/or per-URL config, with /data
+surviving every deploy) answers ahead of the env helper for SYSOI.ai
+specifically. Plain-URL clones of that repo lose; a live token baked in the
+URL bypasses all helpers and works, which is how the repo was restored
+tonight (8,914n re-indexed with embeddings).
+
+Fix: entrypoint now purges every other credential source at boot (system,
+global for root and node, .git-credentials files including /data) so the
+env helper is the SINGLE source of git auth. Follow-up after this image
+deploys: delete + plain-URL re-analyze SYSOI.ai to converge it off the
+baked remote.

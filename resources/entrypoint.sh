@@ -1106,6 +1106,25 @@ main() {
     # URLs still take precedence, so existing remotes keep working unchanged.
     # Configured for both root and the node user (analyze/serve run via gosu,
     # which preserves the environment).
+    # 2026-07-03 hardening (the SYSOI.ai "problem child" incident): a stored
+    # per-URL credential anywhere on the box (system/global store helpers,
+    # ~/.git-credentials, or files on the persistent disk) is consulted ahead
+    # of — or alongside — our env helper, and one dead stored entry poisons
+    # exactly that repo's plain-URL clones forever while every other repo
+    # works. Boot now purges ALL other credential sources so the env helper is
+    # the single source of git auth. Files on /data survive image deploys,
+    # which is precisely how stale credentials outlived every fix; purge those
+    # too (credential material only — never the repos themselves).
+    rm -f /root/.git-credentials /home/node/.git-credentials /data/.git-credentials 2>/dev/null || true
+    git config --system --unset-all credential.helper 2>/dev/null || true
+    git config --global --unset-all credential.helper 2>/dev/null || true
+    if [ "$(id -u)" -eq 0 ]; then
+        gosu node git config --global --unset-all credential.helper 2>/dev/null || true
+    fi
+    if [ -f /data/.gitconfig ]; then
+        git config --file /data/.gitconfig --unset-all credential.helper 2>/dev/null || true
+    fi
+
     if [[ -n "${GIT_CREDENTIAL_TOKEN:-}" ]]; then
         # export: no-op when the var arrives via the container environment (the
         # only production path), but makes the contract explicit for odd local
