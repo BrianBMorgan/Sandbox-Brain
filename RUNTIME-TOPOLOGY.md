@@ -1,43 +1,55 @@
-# Runtime topology — the live deploy DIVERGES from the recipe
+# Runtime topology — how the live deploy is actually wired
 
-> **Read this before trusting any "HAProxy fronts everything / enforces `API_KEY`" statement in `CLAUDE.md` or `README.md`.** Written 2026-07-03 after the 2026-07-02→03 credential incident. `CLAUDE.md`'s "Request routing (HAProxy fronts everything…)" bullets and the "Auth: … gated by an `API_KEY` Bearer" claim describe the *entrypoint* path, which the live deploy does not execute.
+> Written 2026-07-03 (credential incident) and updated the same day after the entrypoint cutover. Supersedes `CLAUDE.md`/`README.md` where they conflict. History first, then the current state and the one remaining gap.
 
-## The divergence
+## History: the override that bypassed the entrypoint (pre-2026-07-03)
 
-The Render service runs a **Docker Command override** (`gitnexus serve --host 0.0.0.0 --port 10000`) that **bypasses `entrypoint.sh` entirely**. All of the following are currently true in production:
+For an unknown period the Render service ran a **Docker Command override** (`gitnexus serve --host 0.0.0.0 --port 10000`) that **bypassed `entrypoint.sh` entirely**. Consequences while it was in place — all since resolved, recorded so the failure mode is recognizable:
 
-- **HAProxy is NOT running.** The override starts `gitnexus serve` directly on the service port. Every "HAProxy fronts `/api/*`", "enforces the `API_KEY` Bearer at the edge", and the QUIC/TLS plumbing describes code that never runs.
-- **`/api/analyze`, `DELETE /api/repo`, and `/api/mcp` are UNAUTHENTICATED.** `gitnexus serve` has no built-in auth (verified in 1.6.5 source — the `API_KEY` gate lives *only* in the HAProxy config the entrypoint generates). A no-auth `POST /api/analyze` returns `202 + jobId`; anyone who can reach the public URL can trigger server-side clones or delete repos. **Compounding this: the service has no `API_KEY` env var set at all** (the client key is stored as `BRAIN_API_KEY`), so even restoring HAProxy would not gate until `API_KEY` is wired (`validate_api_key` treats empty as "no auth").
-- **The entrypoint credential helper (PR #31) never runs**, and #34's boot-purge wouldn't either — both edit the entrypoint the override skips. The incident was resolved with **service-env `GIT_CONFIG_*`** instead (below), not the entrypoint.
-- **`GITNEXUS_HOME` is load-bearing.** `getGlobalDir()` = `process.env.GITNEXUS_HOME || os.homedir()/.gitnexus` — defined in the **upstream gitnexus package** (`dist/storage/repo-manager.js`, ~line 286), *not* a file in this recipe repo; cited only to explain the resolution the deploy depends on. The override supplies `HOME=/data`, so the persistent index at `/data/.gitnexus` is found. Clearing the override *without* setting `GITNEXUS_HOME` makes the entrypoint's `gosu node gitnexus serve` resolve `~/.gitnexus` → `/home/node/.gitnexus` (ephemeral) → **the brain boots with 0 repos.**
+- **HAProxy never started.** `gitnexus serve` ran directly on the service port, so every "HAProxy fronts `/api/*`", "enforces the `API_KEY` Bearer at the edge", and the QUIC/TLS plumbing in `CLAUDE.md` described code that didn't run.
+- **All REST + MCP routes were unauthenticated.** `gitnexus serve` has no built-in auth (verified in 1.6.5 source — the `API_KEY` gate lives *only* in the HAProxy config the entrypoint generates), and `API_KEY` wasn't even set on the service.
+- **The entrypoint credential helper (PR #31) never ran** (nor would #34's boot-purge) — both edit the entrypoint the override skipped. Credentials were fixed with **service-env `GIT_CONFIG_*`** instead (see below).
 
-## Credential handling as it ACTUALLY works now (env-var, not entrypoint)
+## Current state (post-cutover, 2026-07-03)
 
-Git auth is supplied entirely through **service env vars**, independent of the entrypoint:
+The override was **removed** — the service now boots through `entrypoint.sh`. Env vars pinned to make that safe:
+
+- `GITNEXUS_HOME=/data/.gitnexus` — pins the index location user-independently. `getGlobalDir()` = `process.env.GITNEXUS_HOME || os.homedir()/.gitnexus` (upstream gitnexus `dist/storage/repo-manager.js`, ~line 286; **not** a file in this recipe repo). Without it, the entrypoint's `gosu node gitnexus serve` resolves `~/.gitnexus` → `/home/node/.gitnexus` (ephemeral) → **the brain boots with 0 repos.** With it, the persistent `/data/.gitnexus` index (9 repos) is found.
+- `PORT=10000` — the entrypoint binds HAProxy to `$PORT` (default `8010`); Render routes to `10000`, so this must be pinned or the service is unreachable.
+- `API_KEY` = the `BRAIN_API_KEY` value — HAProxy's gate (`validate_api_key` treats empty as "no auth", so it must be set to actually gate).
+
+Confirmed after cutover: HAProxy running (boot log `Starting HAProxy on port 10000` + `Git credential helper enabled`), 9 repos intact, authed clones/pulls work.
+
+### ⚠️ The one remaining gap — mutating REST routes are STILL open
+
+Restoring HAProxy did **not** close the whole hole. HAProxy's `__API_KEY_CHECK__` block **exempts `/api/*`** (`!is_api_path`) and only re-gates `/api/mcp`. Verified post-cutover:
+
+- `/api/mcp` — **gated** ✅ (no-auth → 401, authed → reaches handler).
+- `POST /api/analyze` — **still open** (no-auth → 202, kicks off a server-side clone).
+- `DELETE /api/repo` — **still open** (no-auth drops a repo's index).
+
+> An earlier version of this doc claimed the cutover would make no-auth `POST /api/analyze` → 401. **That was wrong** — the `/api/*` exemption means the mutating REST routes were never gated even in the intended architecture.
+
+**Fix:** PR #36 (`fix/haproxy-gate-mutating-routes`) adds method-scoped deny rules for `POST /api/analyze` + `DELETE /api/repo` (mirroring the `/api/mcp` rules), leaving `GET /api/repos` and `GET /api/analyze/{job}` open. Ships on the next image build + deploy.
+
+## Credential handling (env-var, survives the entrypoint either way)
+
+Git auth is supplied through **service env vars**, so it worked in override mode and keeps working under the entrypoint:
 
 - `GIT_CREDENTIAL_TOKEN` — a **classic** PAT (`repo` scope; works across both `Sandbox-Group-LLC` and `BrianBMorgan`, which a single-owner fine-grained PAT cannot).
-- `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=credential.helper`, `GIT_CONFIG_VALUE_0=!f() { if [ "$1" = "get" ]; then printf "username=x-access-token\npassword=%s\n" "$GIT_CREDENTIAL_TOKEN"; fi; }; f` — an env-reading helper injected at git's highest-priority `GIT_CONFIG_*` level.
-- `GIT_CONFIG_GLOBAL=/dev/null` — **load-bearing.** A dead credential baked into `/data/.gitconfig` (plus a `.git-credentials` file) outranked the env helper and poisoned exactly one repo's plain-URL clones (SYSOI.ai) while others sailed. Pointing `--global` at `/dev/null` silenced the ghost; the ghost files were then deleted from `/data`.
+- `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=credential.helper`, `GIT_CONFIG_VALUE_0=!f() { if [ "$1" = "get" ]; then printf "username=x-access-token\npassword=%s\n" "$GIT_CREDENTIAL_TOKEN"; fi; }; f` — an env-reading helper at git's highest-priority `GIT_CONFIG_*` level.
 
-**Rotation is now a one-var update** (`GIT_CREDENTIAL_TOKEN`) + auto-deploy — proven live 2026-07-03.
+**Rotation is a one-var update** (`GIT_CREDENTIAL_TOKEN`) + auto-deploy — proven live 2026-07-03.
+
+### The `GIT_CONFIG_GLOBAL=/dev/null` gotcha (cutover boot-failure)
+While the ghost `/data/.gitconfig` existed (a dead credential that outranked the env helper and poisoned SYSOI.ai's plain-URL clones), `GIT_CONFIG_GLOBAL=/dev/null` was set to silence it, and the ghost files were then **deleted** from `/data`. But `/dev/null` is **fatal to the entrypoint**: its PR #31 step runs `git config --global …`, which can't lock `/dev/null` → boot dies with `could not lock config file /dev/null: Permission denied` → status 255. It's fine for `serve` (read-only) but not the entrypoint (which writes config). **With the ghost deleted, `GIT_CONFIG_GLOBAL` was removed** — the entrypoint's PR #31 step now re-creates the `--global` credential.helper without error. Where that `--global` write lands depends on each context's `HOME`: the **root** entrypoint process has `HOME=/data` (service env) → `/data/.gitconfig`, and the **`gosu node`** context uses `/home/node` → `/home/node/.gitconfig` (verified via a Render Job). Which file git ends up reading is moot — the `GIT_CONFIG_*` env helper supplies auth at a higher-priority level regardless.
 
 ## Operating this service (there is no shell tab)
 
-- The container has no interactive shell wired, but **Render one-off Jobs** (`POST /v1/services/<id>/jobs {"startCommand":"…"}`) run arbitrary commands in the container with the service env — the de-facto diagnostic shell. Read output via `GET /v1/logs?ownerId=<o>&resource=<jobId>`. `HOME=/data` there.
-- **Disk cleanup pattern:** temporarily PATCH `dockerCommand` to `rm -fv /data/<paths>` → deploy (it "fails" with no port bind — expected) → restore `gitnexus serve …` → deploy. The `-v` output is the receipt in logs. (This removed the ghost `/data/.gitconfig` + `.git-credentials`.)
-  - **⚠️ `rm -fv` on `/data` is destructive and irreversible** — `/data` is the persistent disk holding the entire code-graph index (`/data/.gitnexus/`). Enumerate the **exact** file paths first (via a read-only Job, e.g. `ls -la /data /data/.gitnexus`), never pass a directory or glob that could catch `/data/.gitnexus`, and never `rm -rf /data`. A too-broad delete wipes every repo's index (recoverable only by a full re-clone + re-embed sweep — ~1 hour). Prefer listing what you'll delete in one Job, then deleting the named paths in the next.
+- The container has no interactive shell wired, but **Render one-off Jobs** (`POST /v1/services/<id>/jobs {"startCommand":"…"}`) run arbitrary commands in the container with the service env — the de-facto diagnostic shell. Read output via `GET /v1/logs?ownerId=<o>&resource=<jobId>`. `HOME=/data` there. (Note: Render exec's the `startCommand` as argv — wrap multi-step scripts in `sh -c '…'` or `;`/`&&`/redirects won't be interpreted.)
+- **Disk cleanup pattern:** temporarily PATCH `dockerCommand` to `rm -fv /data/<paths>` → deploy (it "fails" with no port bind — expected) → clear `dockerCommand` (or restore the prior value) → deploy. The `-v` output is the receipt in logs. (This removed the ghost `/data/.gitconfig` + `.git-credentials`.)
+  - **⚠️ `rm -fv` on `/data` is destructive and irreversible** — `/data` is the persistent disk holding the entire code-graph index (`/data/.gitnexus/`). Enumerate the **exact** file paths first (via a read-only Job, e.g. `ls -la /data /data/.gitnexus`), never pass a directory or glob that could catch `/data/.gitnexus`, and never `rm -rf /data`. A too-broad delete wipes every repo's index (recoverable only by a full re-clone + re-embed sweep — ~1 hour).
 
-## Restoring the intended architecture (entrypoint + HAProxy + auth) — staged cutover
+## Rollback of the cutover (if the entrypoint boot ever misbehaves)
 
-Prerequisites (set + verify in current mode first; each is a no-op there):
-
-1. `GITNEXUS_HOME=/data/.gitnexus` — pins the index location user-independently. ✅ set 2026-07-03; 9 repos confirmed to survive.
-2. `PORT=10000` — the entrypoint binds HAProxy to `$PORT` (default `8010`); Render routes to `10000`, so pin it or the service comes up unreachable. ✅ set 2026-07-03; 9 repos hold.
-3. `API_KEY=<the BRAIN_API_KEY value>` — **required to actually gate**; 5–256 chars, no whitespace. **Not yet set — the piece that closes the unauth hole.**
-
-Then clear the `dockerCommand` (one deploy) → the entrypoint runs → HAProxy fronts serve, `GIT_CONFIG_*` still supplies git auth, `GITNEXUS_HOME` keeps the index on `/data`.
-
-**Verify:** `GET /api/repos` = 9 · no-auth `POST /api/analyze` → 401 · an authed call succeeds.
-**Rollback (proven, fast):** restore `dockerCommand` to `gitnexus serve --host 0.0.0.0 --port 10000` → 9 repos return.
-
-The entrypoint's boot-analyze loops `/data/*/` and misfires harmlessly on `/data/.gitnexus` (repos are one level deeper), so it does **not** trigger a heavy re-index on boot.
+Set `dockerCommand` back to `gitnexus serve --host 0.0.0.0 --port 10000` → deploy → 9 repos return on the direct-serve path. Proven fast and reliable during the 2026-07-03 cutover (which took two attempts — the first hit the `/dev/null` gotcha above).
