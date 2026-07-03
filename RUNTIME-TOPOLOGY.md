@@ -1,6 +1,6 @@
 # Runtime topology — how the live deploy is actually wired
 
-> Written 2026-07-03 (credential incident + auth-gate work). Supersedes `CLAUDE.md`/`README.md` where they conflict. History first, then the current (fully-gated) state, then the operational gotchas.
+> Written 2026-07-03 (credential incident + auth-gate work). Supersedes `CLAUDE.md`/`README.md` where they conflict. History first, then the current (fully-gated, normalization-hardened) state, then the operational gotchas.
 
 ## History: the override that bypassed the entrypoint (pre-2026-07-03)
 
@@ -32,7 +32,7 @@ HAProxy's `__API_KEY_CHECK__` block exempts `/api/*` from the `API_KEY` gate (th
 | `GET /` + `/assets` (web UI) | 200 | 200 |
 | `/healthz` (localhost only) | 200 from localhost | — |
 
-The mutating-route deny rules are **method-scoped** (`METH_POST is_analyze_path`, `METH_DELETE is_repo_path`) so the read endpoints stay open. `is_repo_path` is an **exact** `path /api/repo` so it can't collide with the open `GET /api/repos` list.
+The mutating-route deny rules are **method-scoped** (`METH_POST is_analyze_path`, `METH_DELETE is_repo_path`) so the read endpoints (`GET /api/repos`, `GET /api/analyze/{job}`) stay open. Both ACLs use `path_beg`, and `http-request normalize-uri` (merge-slashes / strip-dot / strip-dotdot) canonicalizes the request path **before** the auth decision — so trailing-slash / double-slash / dot-segment variants (`/api/repo/`, `/api//repo`, `/api/repo/x/..`, …) can't dodge the gate by exploiting a path-parse mismatch with the Express backend (which routes them all to the same handler). Every such variant is verified to return 401 (PR #40 + #41). `is_repo_path` matching `/api/repos` is harmless — it's only in the `METH_DELETE` rule, and there's no `DELETE /api/repos` route. See gotcha #5.
 
 ## Credential handling (env-var, survives the entrypoint either way)
 
@@ -64,6 +64,9 @@ curl -sI -H "Authorization: Bearer $TOKEN" \
 # then POST a deploy with {"imageUrl":"ghcr.io/brianbmorgan/sandbox-brain@sha256:<digest>"}
 ```
 Changing the image ref (digest) or `dockerCommand` triggers a **recreate**; a same-ref redeploy is a **rolling** deploy.
+
+### 5. `normalize-uri` is experimental — it needs `expose-experimental-directives`
+HAProxy path ACLs (`path`/`path_beg`) and the backend (Express, non-strict routing) canonicalize paths differently, so `DELETE /api/repo/`, `/api//repo`, `/api/repo/x/..` etc. slipped past the gate and reached the mutating handlers **unauthenticated** — an unauthenticated repo-deletion bypass. The fix is `http-request normalize-uri path-merge-slashes / path-strip-dot / path-strip-dotdot` as the first frontend actions, so HAProxy evaluates the same canonical path Express resolves. **But** `normalize-uri` is flagged experimental in HAProxy 3.x — the config won't parse without `expose-experimental-directives` in the **`global`** section (`'normalize-uri' action is experimental, must be allowed via a global 'expose-experimental-directives'` → entrypoint exit 1). Both pieces ship together.
 
 ## Operating this service (there is no shell tab)
 
