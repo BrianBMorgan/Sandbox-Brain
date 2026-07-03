@@ -1,4 +1,8 @@
 global
+    # normalize-uri (used below to canonicalize paths before auth) is flagged
+    # experimental in HAProxy 3.x and must be explicitly enabled here or the
+    # config fails to parse.
+    expose-experimental-directives
     log stdout format raw local0
     maxconn 4096
     tune.ssl.default-dh-param 2048
