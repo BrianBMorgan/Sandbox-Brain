@@ -1054,6 +1054,14 @@ main() {
     mkdir -p /home/node/.gitnexus
     chown -R "${PUID}:${PGID}" /home/node/.gitnexus 2>/dev/null || true
 
+    # Clones live under /data/.gitnexus (serve runs with HOME=/data — see
+    # start_web_ui), so the node user must OWN that tree or `git reset` during a
+    # refresh fails with EACCES on .git/index.lock. The top-level /data chown
+    # above is deliberately non-recursive (preserves user-mounted-volume
+    # ownership), so chown our own managed registry+clone tree explicitly here.
+    mkdir -p /data/.gitnexus
+    chown -R "${PUID}:${PGID}" /data/.gitnexus 2>/dev/null || true
+
     # Ensure cache directories exist for the node user.
     # Without this, libraries try to write cache into /usr/local/lib/node_modules/
     # which is read-only for the node user, causing EACCES errors during analysis.
