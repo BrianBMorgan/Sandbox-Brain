@@ -1059,8 +1059,13 @@ main() {
     # refresh fails with EACCES on .git/index.lock. The top-level /data chown
     # above is deliberately non-recursive (preserves user-mounted-volume
     # ownership), so chown our own managed registry+clone tree explicitly here.
+    # Unlike the ephemeral /home/node/.gitnexus chown above, this tree is
+    # PERSISTENT and grows with every indexed repo (git objects + embeddings),
+    # so a blanket -R every boot would scale into a real startup cost. Only
+    # chown inodes whose owner/group actually mismatches — after the first pass
+    # everything is node-owned, making subsequent boots near-no-ops.
     mkdir -p /data/.gitnexus
-    chown -R "${PUID}:${PGID}" /data/.gitnexus 2>/dev/null || true
+    find /data/.gitnexus \( \! -user "${PUID}" -o \! -group "${PGID}" \) -exec chown "${PUID}:${PGID}" {} + 2>/dev/null || true
 
     # Ensure cache directories exist for the node user.
     # Without this, libraries try to write cache into /usr/local/lib/node_modules/
