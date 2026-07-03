@@ -36,6 +36,14 @@ frontend mcp_frontend
     acl is_mcp_path path_beg /api/mcp
     acl is_api_path path_beg /api
 
+    # Mutating REST routes re-gated by API_KEY in __API_KEY_CHECK__ (method-scoped
+    # so GET /api/repos and GET /api/analyze/{job} stay open). The /api/* exemption
+    # would otherwise leave POST /api/analyze + DELETE /api/repo unauthenticated.
+    # analyze: path_beg is fail-closed for any future POST under /api/analyze/*.
+    # repo: exact path so it can never collide with the open GET /api/repos list.
+    acl is_analyze_path path_beg /api/analyze
+    acl is_repo_path path /api/repo
+
     # Paths exempt from API key auth
     acl is_web_ui path /
     acl is_web_ui path_beg /assets
