@@ -1109,6 +1109,11 @@ main() {
     git config --global --add safe.directory '*'
     if [ "$(id -u)" -eq 0 ]; then
         gosu node git config --global --add safe.directory '*'
+        # serve runs with HOME=/data (see start_web_ui), so its git reads
+        # /data/.gitconfig — NOT /home/node/.gitconfig. Write safe.directory
+        # there too, or existing /data clones (owned by a differing uid) fail
+        # `git reset` with "dubious ownership" (exit 128) on every refresh.
+        gosu node env HOME=/data git config --global --add safe.directory '*'
     fi
 
     # One server-side git credential (fix for the 2026-07-02 fleet index
