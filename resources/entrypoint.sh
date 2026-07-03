@@ -892,10 +892,16 @@ start_web_ui() {
 
     echo "Starting GitNexus API server on port ${WEB_UI_PORT}"
 
+    # Force HOME=/data for the serve process: gitnexus resolves the clone dir for
+    # /api/analyze from os.homedir() (= $HOME), and under gosu the node user's HOME
+    # is /home/node — an EPHEMERAL in-container path, so clones (and their re-index
+    # on every refresh) would be lost on redeploy while the registry (GITNEXUS_HOME
+    # = /data/.gitnexus, persistent) kept pointing at them. Pin HOME to the mounted
+    # disk so clones land in /data/.gitnexus/repos and survive redeploys.
     if [ "$(id -u)" -eq 0 ]; then
-        gosu node gitnexus serve --port "$WEB_UI_PORT" &
+        gosu node env HOME=/data gitnexus serve --port "$WEB_UI_PORT" &
     else
-        gitnexus serve --port "$WEB_UI_PORT" &
+        env HOME=/data gitnexus serve --port "$WEB_UI_PORT" &
     fi
 
     WEB_UI_PID=$!
