@@ -93,6 +93,10 @@ strategist voice with the whole fleet in reach. Voice-mode precedence lives
 in one unit-tested function (`pickSystem`, `chat.ts`): fleet-strategist >
 neutral fleet > single-repo strategist > code engineer.
 
+> **Planned, not implemented:** a `[do]` prefix engaging a gated tool loop
+> (Composio-backed). Design record: `docs/BRAIN-TOOLS.md`. Everything in
+> the table above is the live behavior.
+
 ## How it talks to THIS service (the part that matters here)
 
 SYSOI's brain client is `src/modules/brain/service.ts`. Base URL
