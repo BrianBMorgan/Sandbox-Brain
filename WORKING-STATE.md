@@ -31,7 +31,16 @@ significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
 - On the record: **`docs/BRAIN-TOOLS.md`** (full design) + PLAN.md Phase 0.5
   insert + decision log 2026-07-10 + next actions 6-8. Implementation is
   SYSOI work; this repo needs no changes at any stage.
-- In flight: Brian is creating the Composio project + connections now.
+- Landed same day: **`COMPOSIO_BRAIN_API_KEY` is live in SYSOI's Render
+  env** (Brian, 2026-07-10, redeployed). Inert until the SYSOI `brainAct`
+  PR declares it (`env.ts` + a `hasComposio` gate, `hasNango` pattern).
+- **Roster v1 connected (Brian, same day): GitHub, Google Drive, Google
+  Docs, Google Sheets** — deliberately small, grown gradually. Research +
+  CRM arrive at Stage 2; email/payments/social never. Stage 0 is therefore
+  **workspace reads**, not web research (BRAIN-TOOLS updated to match).
+  Open scoping call: restrict GitHub to read-only actions in Composio
+  before Stage 0 — raw GitHub mutations would bypass the Rule-0 propose
+  paths (the doc's "GitHub caveat").
 
 ### 2026-07-10 — Slack chat client documented (docs/SLACK-INTEGRATION.md)
 

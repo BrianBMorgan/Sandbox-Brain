@@ -64,11 +64,26 @@ exactly three write paths today, all human-gated:
 
 ## Tool policy tiers
 
-| Tier | Behavior | Examples (v1) |
+| Tier | Behavior | Examples (v1, per the connected roster below) |
 |:--|:--|:--|
-| **SAFE** | Auto-run, read-only | Web research/scrape (Perplexity / Apify / Brightdata — whichever lands in the project), CRM **read** (Attio/HubSpot lookups), workbench data-shaping |
-| **CONFIRM** | Runs only after an explicit human confirm (Slack button) or produces a **draft-only** artifact for human review | Stage 2+: CRM note/record drafts, content draft PRs (via the existing propose paths) |
-| **FORBIDDEN** | Not in the allowlist at all — the brain cannot see these tools | **Email — read AND send (settled 2026-07-10)**, payments, social posting, messaging sends outside the bot's own reply path, anything not explicitly allowlisted |
+| **SAFE** | Auto-run, read-only | Google Drive / Docs / Sheets **read** (briefs, run-of-shows, budgets, calendars), workbench data-shaping, GitHub **read** (only once action-scoped — see the GitHub note) |
+| **CONFIRM** | Runs only after an explicit human confirm (Slack button) or produces a **draft-only** artifact for human review | **Create-new-only** Docs/Sheets drafts in a designated Brain folder — the Docs equivalent of a draft PR; **never edit-in-place** — plus content draft PRs (via the existing propose paths) |
+| **FORBIDDEN** | Not in the allowlist at all — the brain cannot see these tools | **Email — read AND send (settled 2026-07-10)**, payments, social posting, messaging sends outside the bot's own reply path, **raw GitHub mutations via Composio** (see below), anything not explicitly allowlisted |
+
+**Connected roster (2026-07-10, Brian):** GitHub, Google Drive, Google
+Docs, Google Sheets — deliberately small, grown gradually. Research/scrape
+and CRM toolkits are NOT connected yet; they arrive in a later stage as
+explicit adds. Email/payments/social are never connected.
+
+**The GitHub caveat (open scoping call):** the Composio GitHub connection
+is Brian's account — an unscoped toolkit could read any repo it sees and
+write to any of them, which is strictly broader than the brain's existing
+curated write path (SYSOI propose-edit / research-propose / create-book →
+Rule-0-guarded draft PRs to Content-Brain only). gitnexus already covers
+code reading for the indexed repos. So GitHub via Composio is **read-only
+actions at most** in v1 (restricted at the Composio action level, not just
+policy), raw mutations stay FORBIDDEN, and all content writes keep flowing
+through the existing propose paths.
 
 Slack replies keep flowing through the existing Nango `slack-brain`
 connection (`docs/SLACK-INTEGRATION.md`) — the bot's own voice is not a
@@ -121,24 +136,32 @@ Default mentions never touch tools. No prefix, no hands.
    these are additive): does it pick the right tool, does it stop at
    CONFIRM gates, does it refuse FORBIDDEN asks, does it ignore
    instructions embedded in tool output (injection cases).
-3. **The Composio project + connections** (Brian, in flight 2026-07-10) —
-   research toolkit(s) + CRM read + workbench; email/payments/social left
+3. **The Composio project + connections** (Brian — DONE 2026-07-10):
+   project live, `COMPOSIO_BRAIN_API_KEY` in SYSOI's env, initial roster
+   connected (GitHub, Drive, Docs, Sheets). Email/payments/social left
    unconnected so FORBIDDEN is enforced by absence, not just policy.
+   Remaining scoping call: restrict GitHub to read-only actions before
+   Stage 0 (see the GitHub caveat above).
 
 ## Rollout stages
 
 Each stage is a deliberate allowlist edit + a WORKING-STATE entry — never a
 silent broadening.
 
-- **Stage 0 — research only:** web search/scrape + workbench, SAFE tier
-  only. The brain can look things up and shape data mid-task. No mutations
-  anywhere.
-- **Stage 1 — CRM read:** Attio/HubSpot lookups join the SAFE tier. The
-  strategist can answer "what do we know about X" from the operational
-  record, not just the books.
-- **Stage 2 — confirmed drafts:** first CONFIRM-tier mutations, draft-only
-  (CRM note drafts, content draft PRs). Slack button confirms, every one
-  audited and minting a training pair.
+- **Stage 0 — workspace reads:** Drive/Docs/Sheets read + workbench, SAFE
+  tier only (GitHub read joins once action-scoped). The brain can pull the
+  brief, read the budget sheet, and shape data mid-task. No mutations
+  anywhere. An event professional's raw material is in the workspace, not
+  the open web — and internal docs are a far smaller injection surface
+  than scraped pages.
+- **Stage 1 — confirmed drafts:** first CONFIRM-tier mutations,
+  create-new-only (Docs/Sheets drafts in the Brain folder, content draft
+  PRs via the propose paths). Slack button confirms, every one audited and
+  minting a training pair. Never edit-in-place.
+- **Stage 2 — research + CRM:** web search/scrape and Attio/HubSpot read
+  toolkits get connected as explicit adds. This is where the open-web
+  injection surface arrives — the firewall + gates are already proven by
+  then.
 - **Later, maybe:** direct mutations with confirms. Email stays FORBIDDEN
   until explicitly re-decided — that includes read.
 
