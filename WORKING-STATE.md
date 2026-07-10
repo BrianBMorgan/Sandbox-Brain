@@ -26,11 +26,26 @@ significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
   default-deny with denials audited, caps 8 iter / 6 calls / 120s, FINAL
   TURN close-with-a-plan, tool results pinned untrusted. Kill switch =
   remove `COMPOSIO_BRAIN_API_KEY` from SYSOI Render env.
-- **Not yet in front of Slack:** the bot runs on prod (`main`); the hands
-  go live on the next `development → main` promotion. Env is already set.
-  The first real `[do]` doubles as the smoke test of the Composio execute
-  endpoint (client implements v3 path-slug with a v3.1 body-slug fallback
-  — verified against docs, not yet live-fired).
+- **VERIFIED LIVE (same day, ~22:50 UTC):** first successful `[do]` in
+  Slack — `drive_find_file` searched real Drive and returned the most
+  recently modified spreadsheet with methodology and provenance. Two
+  honest failures preceded it (both `No connected account found for user
+  ID default`): the Composio project's connected accounts live under a
+  generated user id, fixed by SYSOI #566/#567 (`COMPOSIO_BRAIN_USER_ID`
+  env, value = the Composio connected-account User ID). All three runs
+  are in `brain_tool_runs` — the audit trail's first entries are the
+  debugging arc itself.
+- **Op-facts learned live:** (1) SYSOI env is NOT service-level — it's
+  the **"SYSOI Environment Group"** on Render (48 keys, linked to BOTH
+  SYSOI.ai and SYSOI Development, which both track `main`); the kill
+  switch is removing `COMPOSIO_BRAIN_API_KEY` from that group. (2) Both
+  GitHub connections in the Composio project are **EXPIRED** — reconnect
+  before `github_read_file`/`github_search_code` will work; Drive, Docs,
+  Sheets, and Calendar are ACTIVE (Sheets + Calendar connected same day;
+  a `calendar_read` allowlist tool is a candidate fast-follow). (3) Every
+  `development → main` promotion leaves its merge commit only on main, so
+  the NEXT promotion always starts 'behind' under the up-to-date rule —
+  back-sync or relax the rule; decided ad-hoc twice tonight.
 - Remaining before Stage 1 (confirmed draft mutations): action/injection
   evals in SYSOI `evals/` (Brian picks the cases), thread progress
   updates for long tasks.

@@ -53,7 +53,12 @@ exactly three write paths today, all human-gated:
 ## Auth + scope model
 
 - **Dedicated Composio project** with its own API key
-  (`COMPOSIO_BRAIN_API_KEY` in SYSOI's Render env — never this repo).
+  (`COMPOSIO_BRAIN_API_KEY` — never this repo). It lives in the **"SYSOI
+  Environment Group"** on Render (not service-level env; the group feeds
+  both SYSOI services), alongside `COMPOSIO_BRAIN_USER_ID` — which MUST
+  equal the User ID on the project's connected accounts (Composio
+  resolves connections per user entity; the 2026-07-10 go-live failed
+  twice on this exact mismatch).
   The personal Composio account (with Gmail, LinkedIn, payments-adjacent
   apps) is NOT wired to the brain: anyone who can `@brain` in Slack would
   otherwise be acting as Brian across every connected app.
