@@ -15,6 +15,26 @@ The session hooks read this file: `session-start.sh` prints the first `### `
 block at boot, and the per-message status line shows its heading. Start each
 significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
 
+### 2026-07-10 — Stage 0 SHIPPED: the brain has hands (SYSOI #563 merged)
+
+- **SYSOI #563** (feat/brain-act-stage0 → `development`, auto-merged on
+  green CI) implements BRAIN-TOOLS in order: **audit first** (migration
+  0057 — null-org `agent_runs` for the Slack path as `brain.chat.slack` /
+  `brain.act.slack`, + `brain_tool_runs` with sanitized args + sha256),
+  then **the loop**: `@brain [do] <task>` → static read-only allowlist
+  (Drive find / Doc read / Sheet read / GitHub read + code search),
+  default-deny with denials audited, caps 8 iter / 6 calls / 120s, FINAL
+  TURN close-with-a-plan, tool results pinned untrusted. Kill switch =
+  remove `COMPOSIO_BRAIN_API_KEY` from SYSOI Render env.
+- **Not yet in front of Slack:** the bot runs on prod (`main`); the hands
+  go live on the next `development → main` promotion. Env is already set.
+  The first real `[do]` doubles as the smoke test of the Composio execute
+  endpoint (client implements v3 path-slug with a v3.1 body-slug fallback
+  — verified against docs, not yet live-fired).
+- Remaining before Stage 1 (confirmed draft mutations): action/injection
+  evals in SYSOI `evals/` (Brian picks the cases), thread progress
+  updates for long tasks.
+
 ### 2026-07-10 — Brain tools design settled: Composio, gated, audited (docs/BRAIN-TOOLS.md)
 
 - Decision (Brian + session, same day): the brain gets **hands** via a

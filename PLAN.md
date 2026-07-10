@@ -150,8 +150,11 @@ Named for completeness. Most people never need the rung.
    `brainAct` lands); roster v1 = GitHub + Drive + Docs + Sheets, grown
    gradually (research/CRM at Stage 2; email/payments never). GitHub
    action-scoped read-only same day — caveat resolved; provisioning done.
-7. [ ] **SYSOI audit identity** — close the Slack `orgId=null` gap +
-   `tool_runs` schema (Phase 0.5 prereq 1; also the Phase-1 seam).
-8. [ ] **SYSOI `brainAct` design PR** implementing `docs/BRAIN-TOOLS.md`
-   (loop caps, `[do]` parsing, confirm buttons), plus action/injection
-   evals in `evals/`.
+7. [x] **SYSOI audit identity** — SYSOI #563 (2026-07-10): migration 0057,
+   null-org `agent_runs` + `brain_tool_runs` (sanitized args + hash).
+8. [x] **SYSOI `brainAct` Stage 0** — SYSOI #563 (2026-07-10): the `[do]`
+   loop, static read-only allowlist, default-deny + caps + FINAL TURN.
+   Live in Slack on the next `development → main` promotion (env already
+   set). Confirm buttons arrive with Stage 1.
+9. [ ] **Action/injection evals** in SYSOI `evals/` (Brian picks the
+   cases) — the gate before Stage-1 confirmed draft mutations.
