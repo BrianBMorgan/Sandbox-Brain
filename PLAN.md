@@ -8,7 +8,7 @@ Doc roles in this repo: **CLAUDE.md** = how to work here · **WORKING.md** =
 fast-changing session handoff · **PLAN.md** (this file) = why + what's next.
 If it's not in a markdown file, it never happened.
 
-Last updated: 2026-07-02
+Last updated: 2026-07-10
 
 ---
 
@@ -47,6 +47,20 @@ Each rung is optional-until-earned. Costs are all-in estimates, not budgets.
   later dollar is spent on vibes. Home: SYSOI `evals/` (private, versioned next
   to the consumer). **NOT Content-Brain** — real briefs aren't public-safe
   (Rule 0).
+
+### Phase 0.5 — hands (tools via Composio, ~$0 infra) — ADDED 2026-07-10
+
+The brain graduates from telling to **doing**: a new SYSOI `brainAct`
+tool-use loop (engaged only by an explicit `[do]` prefix) backed by a
+**dedicated, brain-scoped Composio project** — allowlisted toolkits,
+default-deny, read-heavy start, mutations draft-only behind Slack-button
+confirms. **Email is FORBIDDEN outright (read and send).** The one
+load-bearing invariant: **tool output never writes to knowledge** — the web
+is a tool, not a teacher; the three human-gated knowledge paths (learn /
+corrections / draft PRs) stay the only ingestion. Full design, tiers,
+prerequisites (audit identity first), and rollout stages:
+**`docs/BRAIN-TOOLS.md`**. Strategic tie-in: every confirmed action mints a
+Phase-1 training pair — the tool layer is the data engine's second surface.
 
 ### Phase 1 — the data engine (schema-cheap, this quarter)
 
@@ -103,6 +117,21 @@ Named for completeness. Most people never need the rung.
 - **Forge-LLM + the self-host box: abandoned, correctly.** The value was never
   in owning the window or the weights.
 
+## Decision log — 2026-07-10
+
+- **Tool layer: Composio, dedicated brain-scoped project** — one surface +
+  workbench over provisioning 30+ MCPs. NOT the personal Composio account
+  (its connections act as Brian; the Slack bot is workspace-wide).
+- **Email: FORBIDDEN entirely — read and send.** Enforced by absence (never
+  connected to the brain project), not just policy.
+- **`[do]` prefix gates the loop** — default `@brain` mentions stay pure
+  grounded Q&A. No prefix, no hands.
+- **The firewall invariant:** tool output is turn-ephemeral; it never calls
+  `storeLearning` and never writes Content-Brain outside the existing
+  draft-PR gate. Design record: `docs/BRAIN-TOOLS.md`.
+- **Audit before hands:** the Slack path's `orgId=null` audit gap gets fixed
+  (system audit identity + per-call `tool_runs`) before Stage 0 ships.
+
 ## Next actions
 
 1. [x] **Phase 0 voice wire** — SYSOI #499 merged; promoted to `main` (#500/#502). Live in prod.
@@ -116,3 +145,11 @@ Named for completeness. Most people never need the rung.
 5. [x] **Content-Brain README** — already true on `main`: the consolidated
    README states keyword+graph / no embeddings in two places. Fixed by a
    parallel session before this list existed.
+6. [ ] **Composio brain project + connections** (Brian, in flight
+   2026-07-10): research toolkit(s) + CRM read + workbench; email/payments
+   left unconnected.
+7. [ ] **SYSOI audit identity** — close the Slack `orgId=null` gap +
+   `tool_runs` schema (Phase 0.5 prereq 1; also the Phase-1 seam).
+8. [ ] **SYSOI `brainAct` design PR** implementing `docs/BRAIN-TOOLS.md`
+   (loop caps, `[do]` parsing, confirm buttons), plus action/injection
+   evals in `evals/`.

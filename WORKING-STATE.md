@@ -15,6 +15,24 @@ The session hooks read this file: `session-start.sh` prints the first `### `
 block at boot, and the per-message status line shows its heading. Start each
 significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
 
+### 2026-07-10 — Brain tools design settled: Composio, gated, audited (docs/BRAIN-TOOLS.md)
+
+- Decision (Brian + session, same day): the brain gets **hands** via a
+  **dedicated brain-scoped Composio project** — allowlisted toolkits,
+  default-deny, workbench included. NOT the personal Composio account.
+  **Email is FORBIDDEN outright, read and send.**
+- The firewall invariant: tool output is turn-ephemeral — never
+  `storeLearning`, never Content-Brain writes outside the existing draft-PR
+  gate. The web is a tool, not a teacher.
+- `[do]` prefix gates the loop; default `@brain` stays pure Q&A. Rollout:
+  Stage 0 research-only → Stage 1 CRM read → Stage 2 confirmed drafts.
+  Prereq #1 before any stage: fix the Slack `orgId=null` audit gap +
+  `tool_runs` (also the Phase-1 training-pair seam).
+- On the record: **`docs/BRAIN-TOOLS.md`** (full design) + PLAN.md Phase 0.5
+  insert + decision log 2026-07-10 + next actions 6-8. Implementation is
+  SYSOI work; this repo needs no changes at any stage.
+- In flight: Brian is creating the Composio project + connections now.
+
 ### 2026-07-10 — Slack chat client documented (docs/SLACK-INTEGRATION.md)
 
 - The brain's Slack client (SYSOI `src/modules/brain/slack.ts` + `chat.ts`,
