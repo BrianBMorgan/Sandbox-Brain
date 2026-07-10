@@ -66,7 +66,7 @@ exactly three write paths today, all human-gated:
 
 | Tier | Behavior | Examples (v1, per the connected roster below) |
 |:--|:--|:--|
-| **SAFE** | Auto-run, read-only | Google Drive / Docs / Sheets **read** (briefs, run-of-shows, budgets, calendars), workbench data-shaping, GitHub **read** (only once action-scoped — see the GitHub note) |
+| **SAFE** | Auto-run, read-only | Google Drive / Docs / Sheets **read** (briefs, run-of-shows, budgets, calendars), workbench data-shaping, GitHub **read** (action-scoped read-only in Composio, 2026-07-10) |
 | **CONFIRM** | Runs only after an explicit human confirm (Slack button) or produces a **draft-only** artifact for human review | **Create-new-only** Docs/Sheets drafts in a designated Brain folder — the Docs equivalent of a draft PR; **never edit-in-place** — plus content draft PRs (via the existing propose paths) |
 | **FORBIDDEN** | Not in the allowlist at all — the brain cannot see these tools | **Email — read AND send (settled 2026-07-10)**, payments, social posting, messaging sends outside the bot's own reply path, **raw GitHub mutations via Composio** (see below), anything not explicitly allowlisted |
 
@@ -75,15 +75,16 @@ Docs, Google Sheets — deliberately small, grown gradually. Research/scrape
 and CRM toolkits are NOT connected yet; they arrive in a later stage as
 explicit adds. Email/payments/social are never connected.
 
-**The GitHub caveat (open scoping call):** the Composio GitHub connection
-is Brian's account — an unscoped toolkit could read any repo it sees and
-write to any of them, which is strictly broader than the brain's existing
-curated write path (SYSOI propose-edit / research-propose / create-book →
-Rule-0-guarded draft PRs to Content-Brain only). gitnexus already covers
-code reading for the indexed repos. So GitHub via Composio is **read-only
-actions at most** in v1 (restricted at the Composio action level, not just
-policy), raw mutations stay FORBIDDEN, and all content writes keep flowing
-through the existing propose paths.
+**The GitHub caveat (resolved 2026-07-10 — scoped read-only):** the
+Composio GitHub connection is Brian's account — an unscoped toolkit could
+read any repo it sees and write to any of them, strictly broader than the
+brain's existing curated write path (SYSOI propose-edit / research-propose
+/ create-book → Rule-0-guarded draft PRs to Content-Brain only). gitnexus
+already covers code reading for the indexed repos. So GitHub via Composio
+is **restricted to read-only actions at the Composio action level** (done
+2026-07-10 — enforced in the project, not just policy), raw mutations stay
+FORBIDDEN, and all content writes keep flowing through the existing
+propose paths.
 
 Slack replies keep flowing through the existing Nango `slack-brain`
 connection (`docs/SLACK-INTEGRATION.md`) — the bot's own voice is not a
@@ -140,8 +141,9 @@ Default mentions never touch tools. No prefix, no hands.
    project live, `COMPOSIO_BRAIN_API_KEY` in SYSOI's env, initial roster
    connected (GitHub, Drive, Docs, Sheets). Email/payments/social left
    unconnected so FORBIDDEN is enforced by absence, not just policy.
-   Remaining scoping call: restrict GitHub to read-only actions before
-   Stage 0 (see the GitHub caveat above).
+   GitHub restricted to read-only actions in Composio same day — the
+   caveat above is resolved. **Stage 0 now blocks only on prereqs 1–2
+   (SYSOI work).**
 
 ## Rollout stages
 
@@ -149,7 +151,7 @@ Each stage is a deliberate allowlist edit + a WORKING-STATE entry — never a
 silent broadening.
 
 - **Stage 0 — workspace reads:** Drive/Docs/Sheets read + workbench, SAFE
-  tier only (GitHub read joins once action-scoped). The brain can pull the
+  tier only (GitHub read included — scoped read-only 2026-07-10). The brain can pull the
   brief, read the budget sheet, and shape data mid-task. No mutations
   anywhere. An event professional's raw material is in the workspace, not
   the open web — and internal docs are a far smaller injection surface
