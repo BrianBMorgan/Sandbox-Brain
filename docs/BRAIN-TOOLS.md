@@ -94,7 +94,10 @@ Default mentions never touch tools. No prefix, no hands.
   `brainChat` stays untouched as the default answerer.
 - **Caps:** max ~8 loop iterations, ~6 tool calls per task, per-tool
   timeout, and a total wall-clock budget; the 🧠-reaction ack pattern
-  extends with thread progress updates for long tasks.
+  extends with thread progress updates for long tasks. When a cap is about
+  to bite, the loop tells the model it is on its **final iteration**, so
+  the reply closes with a structured plan for the remainder rather than a
+  mid-task truncation.
 - **Grounding discipline carries over:** the final reply cites which tool
   produced which claim, same as source citations today.
 - **Concurrency:** `brainAct` tasks get a small SYSOI-side concurrency cap
@@ -107,7 +110,10 @@ Default mentions never touch tools. No prefix, no hands.
    `agent_runs` entirely. A brain that *acts* unaudited is undebuggable.
    Fix: a system-level audit identity (or nullable-org rows) so every
    `brainAct` run lands in `agent_runs`, plus a per-call `tool_runs` record
-   (tool slug, args hash, outcome, latency). This is also the Phase-1 seam:
+   (tool slug, **sanitized + truncated args** — secrets redacted, capped
+   length — plus an args hash for integrity, outcome, latency). A hash
+   alone can verify what ran but can't answer "what did the brain do?"
+   during an incident; sanitized args can. This is also the Phase-1 seam:
    **every CONFIRM action is a training pair** (context → draft action →
    human confirm/edit → outcome) — the tool layer is the data engine's
    second surface (PLAN.md Phase 1).
