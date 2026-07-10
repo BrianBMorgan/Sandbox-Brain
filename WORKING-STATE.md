@@ -38,9 +38,9 @@ significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
   Docs, Google Sheets** — deliberately small, grown gradually. Research +
   CRM arrive at Stage 2; email/payments/social never. Stage 0 is therefore
   **workspace reads**, not web research (BRAIN-TOOLS updated to match).
-  Open scoping call: restrict GitHub to read-only actions in Composio
-  before Stage 0 — raw GitHub mutations would bypass the Rule-0 propose
-  paths (the doc's "GitHub caveat").
+  GitHub scoped **read-only** in Composio same day — the doc's "GitHub
+  caveat" is resolved. Provisioning is DONE; Stage 0 now blocks only on
+  the SYSOI side (audit identity + `tool_runs`, then `brainAct`).
 
 ### 2026-07-10 — Slack chat client documented (docs/SLACK-INTEGRATION.md)
 
