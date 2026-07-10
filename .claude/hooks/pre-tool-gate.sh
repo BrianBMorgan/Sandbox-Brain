@@ -20,6 +20,12 @@ esac
 
 if [ "$mut" = true ]; then
   if [ ! -f "$OK" ] || [ "$(cat "$OK" 2>/dev/null)" != "$SESSION" ]; then
+    # Self-heal the stale-id deadlock: record the LIVE session id so the
+    # remedy below (re-running preflight) binds to THIS session instead of a
+    # stale/"manual" id. The gate still requires that fresh preflight to pass.
+    if [ -n "$SESSION" ] && [ "$SESSION" != "-" ]; then
+      { mkdir -p "$ROOT/.claude/.state" && printf '%s' "$SESSION" > "$ROOT/.claude/.state/session-id"; } 2>/dev/null || true
+    fi
     {
       echo "⛔ PREFLIGHT GATE — edits/commits are blocked until the capability check passes this session."
       echo "   Run:  bash .claude/hooks/preflight.sh"

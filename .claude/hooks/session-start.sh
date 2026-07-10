@@ -15,7 +15,13 @@ INPUT="$(cat)"
 ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 mkdir -p "$ROOT/.claude/.state"
 SID=$(printf '%s' "$INPUT" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{let j={};try{j=JSON.parse(d)}catch{}process.stdout.write(j.session_id||"")})')
-[ -n "$SID" ] && echo "$SID" > "$ROOT/.claude/.state/session-id"
+if [ -n "$SID" ]; then
+  echo "$SID" > "$ROOT/.claude/.state/session-id"
+else
+  # No parseable session id (manual run without piped JSON, schema change) —
+  # drop any stale one so downstream state reads "manual", not a dead session.
+  rm -f "$ROOT/.claude/.state/session-id"
+fi
 
 cd "$ROOT" 2>/dev/null || true
 git fetch origin "$BASE_BRANCH" >/dev/null 2>&1 || true
