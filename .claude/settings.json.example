@@ -1,0 +1,15 @@
+{
+  "_comment": "Reference copy of the hook registration. The ACTIVE copy is .claude/settings.json (committed — landing it via a reviewed PR is the human activation step). If settings.json is ever removed, restore it from this file: `cp .claude/settings.json.example .claude/settings.json` and commit. Hooks bind at session start — start a fresh session after activating. Add `\"async\": true` to a hook to trade guaranteed-ready for faster startup.",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\"" }] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-gate.sh\"" }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/user-prompt-status.sh\"" }] }
+    ]
+  }
+}

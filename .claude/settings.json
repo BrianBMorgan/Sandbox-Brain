@@ -1,0 +1,15 @@
+{
+  "_comment": "Hook registration — session bootstrap (brief + preflight gate + live status). Loaded when Sandbox-Brain is the session's project root; inert in multi-repo sessions where the cwd is a parent dir. See docs/SESSION-BOOTSTRAP.md.",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\"" }] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-gate.sh\"" }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/user-prompt-status.sh\"" }] }
+    ]
+  }
+}
