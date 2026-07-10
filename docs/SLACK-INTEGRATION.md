@@ -246,6 +246,12 @@ for `app_mention` + `message.im` pointed at
   MCP `query` sessions (one per registry repo) + up to ~6 GitHub reads. The
   brain is memory-bound (CLAUDE.md) — if Slack answers start failing with
   the cold-start message, check the brain first, and do not hammer-retry.
+  **There is no SYSOI-side concurrency limiter or queue on this fan-out
+  today** — the only throttles are the endpoint's 120/min rate limit and
+  organic Slack traffic. If usage grows into real bursts, the lever is a
+  queue/limiter in SYSOI (same lesson as the GTM refresh split: concurrent
+  heavy load is what pressures the brain) — never a brain-side memory cap
+  (`GITNEXUS_MAX_MEM_MB` stays `0`).
 - **Auditing gap (by design, know it):** the Slack path calls
   `brainChat(null, …)` — no org context — so `agent_runs` rows are NOT
   written for Slack questions (the `recordRun` insert requires an orgId).
