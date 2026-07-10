@@ -15,6 +15,23 @@ The session hooks read this file: `session-start.sh` prints the first `### `
 block at boot, and the per-message status line shows its heading. Start each
 significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
 
+### 2026-07-10 — Slack chat client documented (docs/SLACK-INTEGRATION.md)
+
+- The brain's Slack client (SYSOI `src/modules/brain/slack.ts` + `chat.ts`,
+  live in the Sandbox workspace) is now documented host-side in
+  **`docs/SLACK-INTEGRATION.md`**: event flow, message grammar
+  (`[RepoName]` / `[all]` / `[learn]` / threaded corrections), the
+  per-question MCP load this service sees (~9 parallel `query` sessions in
+  the default fleet-strategist mode), SYSOI env surface, and gotchas.
+- Two SYSOI-side facts recorded there: (1) a pgvector semantic **sidecar**
+  (`content_semantic_chunks`, H2-chunked books) now gives Content-Brain real
+  semantic recall — the brain's `embeddings:0` stays correct; the 07-02
+  "markdown can't embed" gap is routed around on SYSOI's side, not fixed in
+  the fork; (2) a learnings loop (`brain_learnings`) stores Slack
+  corrections and injects the top matches into future answers.
+- Content-Brain sits at 279 files in the registry (91 on 07-02) — the
+  book corpus Brian has been feeding it.
+
 ### 2026-07-10 — Session bootstrap landed (.claude hooks + capabilities.json + env setup)
 
 - `.claude/` hooks ported from Forge-Intelligence: SessionStart brief (git

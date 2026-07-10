@@ -169,6 +169,11 @@ Mutating routes and the MCP endpoint require `Authorization: Bearer <API_KEY>`;
   > `/api/mcp` is the single canonical MCP URL. The old `/mcp` route (an
   > `mcp-proxy` bridge that 404'd) was **removed** from this fork (PR #17,
   > closing issue #7).
+- **Slack:** mention `@brain` in the Sandbox workspace (or DM it). The bot
+  lives in SYSOI.ai and rides this same MCP `query` path — fanned across all
+  indexed repos in its default strategist mode, with the house voice and a
+  corrections/learnings loop layered on top. Full wiring, message grammar,
+  and env surface: [`docs/SLACK-INTEGRATION.md`](docs/SLACK-INTEGRATION.md).
 - **Indexing:** `POST /api/analyze {"url":"<git-url>","embeddings":true}`, then
   poll `GET /api/analyze/{jobId}` to `complete`/`failed`. `"embeddings":true` is
   **required** — without it the repo indexes but with `embeddings:0` and no
