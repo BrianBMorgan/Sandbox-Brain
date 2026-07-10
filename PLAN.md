@@ -145,9 +145,11 @@ Named for completeness. Most people never need the rung.
 5. [x] **Content-Brain README** — already true on `main`: the consolidated
    README states keyword+graph / no embeddings in two places. Fixed by a
    parallel session before this list existed.
-6. [ ] **Composio brain project + connections** (Brian, in flight
-   2026-07-10): research toolkit(s) + CRM read + workbench; email/payments
-   left unconnected.
+6. [ ] **Composio brain project + connections** (Brian):
+   `COMPOSIO_BRAIN_API_KEY` deployed to SYSOI's Render env 2026-07-10
+   (inert until `brainAct` lands). Remaining: the connection roster —
+   research toolkit(s) + CRM read + workbench; email/payments left
+   unconnected.
 7. [ ] **SYSOI audit identity** — close the Slack `orgId=null` gap +
    `tool_runs` schema (Phase 0.5 prereq 1; also the Phase-1 seam).
 8. [ ] **SYSOI `brainAct` design PR** implementing `docs/BRAIN-TOOLS.md`

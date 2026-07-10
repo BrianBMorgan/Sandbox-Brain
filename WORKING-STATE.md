@@ -31,7 +31,11 @@ significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
 - On the record: **`docs/BRAIN-TOOLS.md`** (full design) + PLAN.md Phase 0.5
   insert + decision log 2026-07-10 + next actions 6-8. Implementation is
   SYSOI work; this repo needs no changes at any stage.
-- In flight: Brian is creating the Composio project + connections now.
+- Landed same day: **`COMPOSIO_BRAIN_API_KEY` is live in SYSOI's Render
+  env** (Brian, 2026-07-10, redeployed). Inert until the SYSOI `brainAct`
+  PR declares it (`env.ts` + a `hasComposio` gate, `hasNango` pattern).
+  Remaining Brian-side: finish the project's connection roster (research +
+  CRM read + workbench; email/payments never connected).
 
 ### 2026-07-10 — Slack chat client documented (docs/SLACK-INTEGRATION.md)
 
