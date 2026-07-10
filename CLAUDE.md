@@ -23,6 +23,9 @@ This repo is **shell + Docker + YAML**, not an app. Hold to its conventions:
 1. **`CLAUDE.md`** (this file) — orientation.
 2. **`README.md`** — what this fork is, what changed vs upstream, and how it builds/deploys.
 3. **`PINS.md`** — the current pins and the exact commands that resolved them.
+4. **`WORKING-STATE.md`** — the live handoff pointer (the newest `###` block is "where we are"; the SessionStart hook prints it at boot).
+
+Dedicated sessions boot **warm and gated** via the `.claude/` hooks: a SessionStart brief (git state, WORKING-STATE pointer, live brain-registry probe, capability preflight), a per-message status line, and a PreToolUse gate that blocks edits/commits until the preflight passes. `capabilities.json` is the capability manifest (required CLIs, watched env — `BRAIN_API_KEY` / `RENDER_API_KEY` — and the MCP list); `.claude/env-setup.sh` is the environment Setup script that registers the brain itself as the `gitnexus` MCP. Full doc: **`docs/SESSION-BOOTSTRAP.md`**.
 
 ## What the Brain does (runtime)
 - Holds a **persistent, multi-repo code-graph index** on a Render disk at `/data` — both the registry (`GITNEXUS_HOME=/data/.gitnexus`) and the per-repo clones (`/data/.gitnexus/repos/<name>`) live on that disk. The clone dir is resolved from `$HOME` (not `GITNEXUS_HOME`), so the serve process runs with **`HOME=/data`** and the entrypoint **chowns `/data/.gitnexus` to the node user** — without both, clones land on an ephemeral path (`/home/node`) and are lost on redeploy (which double-registers every repo), and refreshes fail `git reset` with EACCES on `.git/index.lock`. Full mechanism + the git-reset-128 diagnosis: RUNTIME-TOPOLOGY.md "Clone persistence".

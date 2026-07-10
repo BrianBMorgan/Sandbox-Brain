@@ -5,7 +5,27 @@ re-discovery. This repo (Sandbox-Brain) is the **host** for the brain; the
 work below also touches **Content-Brain** (the indexed content repo) and
 **SYSOI** (the Brain console UI), which are separate repos.
 
-Last updated: 2026-07-02
+Last updated: 2026-07-10
+
+---
+
+## Convention: the newest `###` block below is the live pointer
+
+The session hooks read this file: `session-start.sh` prints the first `### `
+block at boot, and the per-message status line shows its heading. Start each
+significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
+
+### 2026-07-10 — Session bootstrap landed (.claude hooks + capabilities.json + env setup)
+
+- `.claude/` hooks ported from Forge-Intelligence: SessionStart brief (git
+  state + this block + a live brain-registry probe against GET /api/repos),
+  per-message status line, and the preflight edit gate driven by
+  `capabilities.json` (watched env: `BRAIN_API_KEY`, `RENDER_API_KEY`).
+- Preflight also enforces the 3-place pin agreement (PINS.md ·
+  DockerfileModifier.sh · build.yml) — warn-only, never blocks.
+- `.claude/env-setup.sh` is the environment Setup script: registers the brain
+  itself as the `gitnexus` MCP (Bearer `BRAIN_API_KEY`) + boot smoke probes.
+  Full doc: `docs/SESSION-BOOTSTRAP.md`.
 
 ---
 

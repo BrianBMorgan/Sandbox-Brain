@@ -1,0 +1,36 @@
+{
+  "_comment": "Capability manifest — the single source of truth for what a Sandbox-Brain dev session NEEDS to function. The preflight hook (.claude/hooks/preflight.mjs) checks the shell-verifiable items (cli/env) and the PreToolUse gate blocks edits/commits until the REQUIRED ones pass; the model verifies the MCP list against its own tool list at boot (a shell can't see MCP connections). Operational secrets live in env.watched (NOT required) so a wipe is surfaced loudly on every message without blocking unrelated doc/script edits.",
+  "baseBranch": "main",
+  "cli": {
+    "required": ["git", "curl", "jq", "node"],
+    "optional": [
+      { "name": "shellcheck", "why": "CLAUDE.md requires shell scripts be checked (bash -n at minimum, ideally shellcheck) before committing — a broken self-healing script is worse than none." },
+      { "name": "docker", "why": "Only for local image experiments. The real build is GitHub Actions build.yml (workflow_dispatch, GHCR) — cloud sessions never need docker." }
+    ]
+  },
+  "env": {
+    "_note": "required = block the edit gate when missing (keep tiny — doc/script edits need no secret). watched = never block, but surface on every message via the status hook so a wiped key is caught at the next prompt, not mid-task.",
+    "required": [],
+    "watched": [
+      { "name": "BRAIN_API_KEY", "why": "Bearer for the brain's HAProxy API_KEY gate — POST /api/analyze, DELETE /api/repo, and /api/mcp all 401 without it. Also what the gitnexus MCP registration expands at connect time." },
+      { "name": "RENDER_API_KEY", "why": "Render REST inspection of the live service (srv-d8dgc268bjmc73a5lup0) — deploys, env vars, logs, and deploy-by-digest. The definitive 'is it even deployed?' answer." }
+    ]
+  },
+  "mcp": {
+    "_note": "Verified by the MODEL against its tool list at boot (session-start brief tells it to). A shell hook cannot see MCP connections. github is harness-provided in Claude Code on the web; gitnexus (the brain itself) is registered by the environment Setup script (.claude/env-setup.sh) — smoke test: a query call against any roster repo.",
+    "required": ["github"],
+    "directMcps": [
+      { "name": "github", "why": "All PR/issue/CI operations (mcp__github__*). This repo is main-only: work on a branch, open a DRAFT PR, never self-merge." },
+      { "name": "gitnexus", "why": "The Sandbox Brain itself (https://sandbox-brain.onrender.com/api/mcp, Bearer BRAIN_API_KEY). Code-graph queries over the 9 indexed repos: query / context / impact / cypher. Optional — CLAUDE.md still orients without it; if absent, re-run .claude/env-setup.sh registration and restart once." }
+    ]
+  },
+  "knownBlockers": [
+    "One-off Render Jobs run with the service env but DO NOT mount the /data disk — /data is empty there. Env/network probes: Jobs are fine; anything reading/writing the real index: temporary-dockerCommand-then-deploy (the web container has the disk). Both startCommand and dockerCommand are argv-split without shell parsing — no `sh -c '…'` chaining, one command per run. See RUNTIME-TOPOLOGY.md 'Operating this service'.",
+    "The Render deploy is image-digest-pinned with autoDeploy off — pushing a new :tag does NOT redeploy by itself. Deploy by explicit digest (RUNTIME-TOPOLOGY.md gotcha #4). If 'deploy did nothing', compare the service's pinned image digest vs the tag just pushed.",
+    "GITNEXUS_MAX_MEM_MB must stay 0 — LadybugDB mmaps a ~16 GiB VIRTUAL address space at startup; any cap below 16384 fails ('Mmap for size 17179869184 failed') and every DB-backed tool returns 'LadybugDB unavailable'. Resident memory stays low; only the reservation is huge. On 502/503/504 or OOM, do NOT hammer-retry.",
+    "Never bulk-PUT Render env vars — it REPLACES ALL VARS. Dashboard or single-key PATCH only.",
+    "A just-wired MCP cannot be used in the SAME session that added it (tools bind at session start) — restart once, deliberately.",
+    "A pin bump is a deliberate 3-place edit: PINS.md (value + date + source) + the DockerfileModifier.sh fallback + the build.yml default/env — then re-run the workflow. The preflight pins check goes ‼️ on drift but never blocks (you may legitimately be mid-bump).",
+    "Egress: the session's network policy must allow sandbox-brain.onrender.com, or the session-brief brain probe and the gitnexus MCP will both fail while repo work is otherwise fine (don't misread that as the brain being down)."
+  ]
+}
