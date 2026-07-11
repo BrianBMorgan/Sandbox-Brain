@@ -15,6 +15,27 @@ The session hooks read this file: `session-start.sh` prints the first `### `
 block at boot, and the per-message status line shows its heading. Start each
 significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
 
+### 2026-07-11 — Sandy grows: cost-by-key + Render read tools (SYSOI #568–#574)
+
+- **`BRAIN_ANTHROPIC_API_KEY`** (SYSOI #568, promoted #571): Sandy's
+  completions (brainChat + brainAct) prefer a dedicated Anthropic key —
+  console cost-by-key shows Sandy as its own line. Inert until Brian adds
+  the key (dedicated Console workspace) to the SYSOI Environment Group.
+  Other brain modules (propose-edit/research/create-book) stay shared —
+  one `keyScope` param each if they should move.
+- **Render read tools** (SYSOI #572, promoted #574): `render_list_services`
+  / `render_list_deploys` / `render_get_deploy` joined the SAFE allowlist —
+  the first post-launch TWO-SIDED add (Brian connected the toolkit; Sandy
+  saw nothing until the reviewed allowlist entry — default-deny working as
+  designed, and Sandy's "I don't have that tool" refusal was honest).
+  **Excluded on purpose: Render logs + env-var reads — secrets in model
+  context. This is the standing rule for every future toolkit add.**
+- **Back-sync is now the standard pre-promotion step** (#570, #573): merge
+  main into development via PR BEFORE opening the promotion — no more
+  stuck-behind promotions.
+- GitHub Composio connector fixed same morning (managed auth config — see
+  the 07-10 block's op-facts).
+
 ### 2026-07-10 — Stage 0 SHIPPED: the brain has hands (SYSOI #563 merged)
 
 - **SYSOI #563** (feat/brain-act-stage0 → `development`, auto-merged on
