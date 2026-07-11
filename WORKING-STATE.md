@@ -33,7 +33,7 @@ significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
 - **Render `[do]` verified END-TO-END** (same morning, after a three-fix
   debugging arc, every failure honest + audited in `brain_tool_runs`):
   (1) connected-account user id (`COMPOSIO_BRAIN_USER_ID`, #566), (2)
-  Composio versioned-toolkit quirk (`version:'latest'` on execute, #575 —
+  Composio versioned-toolkit quirk (`version: 'latest'` on execute, #575 —
   newer toolkits 404 as ToolNotFound without it), (3) **the loop's own 8k
   result cap silently decapitated the 50-service list** → false "service
   not found" from ✓ successful calls. Fixed by result SHAPERS (slim
