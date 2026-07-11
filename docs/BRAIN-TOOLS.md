@@ -133,6 +133,16 @@ Default mentions never touch tools. No prefix, no hands.
   mid-task truncation.
 - **Grounding discipline carries over:** the final reply cites which tool
   produced which claim, same as source citations today.
+- **Composio execute sends `version: 'latest'`** (SYSOI #575) — REQUIRED
+  by Composio's newer versioned toolkits (Render 404'd as
+  `Tool_ToolNotFound` without it); legacy toolkits accept it harmlessly.
+- **Results are shaped, and truncation is loud** (SYSOI #582): known-large
+  tool results are slimmed to essentials BEFORE the size cap so items
+  never silently vanish — 50 raw Render service objects blew the 8k cap,
+  the tail was cut, and the model concluded the missing services "didn't
+  exist" from ✓ successful calls. When the cap does bite, the marker
+  forbids concluding absence from a cut list. Standing rule alongside
+  "no secrets in model context."
 - **Concurrency:** `brainAct` tasks get a small SYSOI-side concurrency cap
   from day 1 — the limiter the Q&A fan-out never had
   (`docs/SLACK-INTEGRATION.md` "Load shape").

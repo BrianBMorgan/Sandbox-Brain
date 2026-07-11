@@ -30,6 +30,16 @@ significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
   designed, and Sandy's "I don't have that tool" refusal was honest).
   **Excluded on purpose: Render logs + env-var reads — secrets in model
   context. This is the standing rule for every future toolkit add.**
+- **Render `[do]` verified END-TO-END** (same morning, after a three-fix
+  debugging arc, every failure honest + audited in `brain_tool_runs`):
+  (1) connected-account user id (`COMPOSIO_BRAIN_USER_ID`, #566), (2)
+  Composio versioned-toolkit quirk (`version: 'latest'` on execute, #575 —
+  newer toolkits 404 as ToolNotFound without it), (3) **the loop's own 8k
+  result cap silently decapitated the 50-service list** → false "service
+  not found" from ✓ successful calls. Fixed by result SHAPERS (slim
+  before cap) + a loud truncation marker that forbids concluding absence
+  from a cut list (#579, #582). Final run: Sandy reported SYSOI.ai's live
+  deploy — the very commit that fixed her.
 - **Back-sync is now the standard pre-promotion step** (#570, #573): merge
   main into development via PR BEFORE opening the promotion — no more
   stuck-behind promotions.
