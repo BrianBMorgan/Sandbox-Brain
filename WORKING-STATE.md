@@ -38,11 +38,18 @@ significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
 - **Op-facts learned live:** (1) SYSOI env is NOT service-level — it's
   the **"SYSOI Environment Group"** on Render (48 keys, linked to BOTH
   SYSOI.ai and SYSOI Development, which both track `main`); the kill
-  switch is removing `COMPOSIO_BRAIN_API_KEY` from that group. (2) Both
-  GitHub connections in the Composio project are **EXPIRED** — reconnect
-  before `github_read_file`/`github_search_code` will work; Drive, Docs,
-  Sheets, and Calendar are ACTIVE (Sheets + Calendar connected same day;
-  a `calendar_read` allowlist tool is a candidate fast-follow). (3) Every
+  switch is removing `COMPOSIO_BRAIN_API_KEY` from that group. (2) GitHub
+  RECONNECTED 2026-07-11 via a **Composio-managed auth config**
+  (`github-brain-managed`, `ac_fSIiUSrwYqcO`): the original custom config's
+  OAuth app had been deleted — GitHub 404'd every authorize link (the
+  client id was Brian's own, from a since-removed app). Managed = Composio's
+  GitHub app, initiated via `POST /api/v3/connected_accounts/link` (the
+  plain create endpoint 400s for managed configs). ALL FIVE toolkits now
+  ACTIVE: Drive, Docs, Sheets, Calendar, GitHub (`calendar_read` allowlist
+  tool remains a candidate fast-follow). Dead `github-ri5die` config + its
+  expired connections: delete in the dashboard. Managed-app scopes include
+  write — GitHub read-only stays enforced at the Composio action level +
+  the SYSOI allowlist contract test. (3) Every
   `development → main` promotion leaves its merge commit only on main, so
   the NEXT promotion always starts 'behind' under the up-to-date rule —
   back-sync or relax the rule; decided ad-hoc twice tonight.
