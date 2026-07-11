@@ -1,10 +1,12 @@
 # Brain tools — giving the strategist hands (design record)
 
-> **Status: DESIGN — nothing in this doc is implemented yet.** Settled with
-> Brian 2026-07-10. Implementation is SYSOI work (a new `brainAct` loop next
-> to `brainChat`); this repo is the host and holds the cross-repo record.
-> Read alongside `docs/SLACK-INTEGRATION.md` (how the brain answers today)
-> and `PLAN.md` (where this sits on the ladder).
+> **Status: STAGE 0 LIVE IN PRODUCTION** (verified 2026-07-10; Render tools
+> + cost-by-key added 2026-07-11). Design settled with Brian 2026-07-10 and
+> implemented same-day in SYSOI (`brainAct` next to `brainChat` — #563,
+> #566, #568, #572). This doc is now both the design record AND the
+> operating reference; the rollout log lives in WORKING-STATE.md. Read
+> alongside `docs/SLACK-INTEGRATION.md` (the Q&A path) and `PLAN.md`
+> (Phase 0.5 on the ladder).
 
 ## The decision
 
