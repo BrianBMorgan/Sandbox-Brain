@@ -22,7 +22,7 @@ significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
   DISCOVERY (three Drive search phrasings + a code search + a scoped
   re-search) and had none left to READ the candidates — then closed with a
   plan addressed to "the next session turn," which doesn't exist for a
-  one-shot [do]. Caps 6→12 calls / 8→10 iters / 120→150s; system prompt now
+  one-shot [do]. Caps 8→10 iters / 6→12 calls / 120→150s; system prompt now
   says "one broad search, then read the top candidates as PARALLEL calls in
   one turn"; FINAL TURN note routes an unfinished plan to the HUMAN.
 - **Threaded `[do] continue`** (SYSOI #594, promoted #593 — same promotion):
