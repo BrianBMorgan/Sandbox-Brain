@@ -15,6 +15,34 @@ The session hooks read this file: `session-start.sh` prints the first `### `
 block at boot, and the per-message status line shows its heading. Start each
 significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
 
+### 2026-07-12 — drive_read_file: the ICP-run root cause was a READ gap, not budget (SYSOI #595/#596)
+
+- Two ICP runs ("[do] What is the ICP for SYSOI?") failed even after the
+  budget fix — because Sandy could FIND `sysoi-profile.json` (29KB, which
+  literally holds the ICP personas) but had no tool to READ it: `doc_read`
+  is native-Docs-only, the file is raw JSON, and the pitch deck is Slides.
+  A capability gap, diagnosed straight from her honest tool logs.
+- **`drive_read_file`** (SYSOI #595, promoted #596, live 87f684b):
+  `GOOGLEDRIVE_DOWNLOAD_FILE` — reads raw files (json/txt/md/csv) directly
+  and exports Docs/Slides to text via `mime_type`. **The download returns a
+  SIGNED URL, not inline bytes, and the model has no HTTP tool** — so
+  `composio.ts` resolves it SERVER-SIDE (fetch → 40KB cap → inline). The
+  URL comes ONLY from Composio's authenticated response (never model /
+  document input) and the host is allowlisted (r2/googleapis/
+  googleusercontent) — no SSRF surface, unit-tested (refuses + doesn't
+  fetch a non-allowlisted host). File reads get a 32k model-facing cap (an
+  8k search cap would drop the file's own data). Verified live: the JSON
+  returns SYSOI's real personas (VP of Revenue / CRO, 50–500-person B2B).
+- **SAFE roster now NINE tools across five toolkits.** New standing lesson:
+  "find" and "read" are separate capabilities — a search tool without a
+  content-read tool for the file TYPES that hold the answer is a silent
+  dead end. Every future toolkit add: pair discovery with content read.
+- **Claude Code review bot skipped #592–#596** — org overage spend limit.
+  These included security-relevant code (the SSRF guard); unreviewed except
+  by the authoring session. Raise/re-link the limit before Gemini's
+  reviewer retires 2026-07-17 (Claude Code settings:
+  `claude.ai/admin-settings/claude-code`).
+
 ### 2026-07-12 — brainAct budget fix + threaded [do] continue (SYSOI #592–#594)
 
 - **Budget resized for search-THEN-read** (SYSOI #592, promoted #593): the
