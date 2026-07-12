@@ -39,8 +39,9 @@ significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
   dead end. Every future toolkit add: pair discovery with content read.
 - **Claude Code review bot skipped #592–#596** — org overage spend limit.
   These included security-relevant code (the SSRF guard); unreviewed except
-  by the authoring session. Raise/re-link at claude.ai/admin-settings/
-  claude-code before Gemini's reviewer retires 2026-07-17.
+  by the authoring session. Raise/re-link the limit before Gemini's
+  reviewer retires 2026-07-17 (Claude Code settings:
+  `claude.ai/admin-settings/claude-code`).
 
 ### 2026-07-12 — brainAct budget fix + threaded [do] continue (SYSOI #592–#594)
 
