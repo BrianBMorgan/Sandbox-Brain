@@ -125,12 +125,19 @@ Default mentions never touch tools. No prefix, no hands.
 - **New `brainAct` loop** next to `brainChat` — an agentic tool-use loop
   (Claude tool-runner), NOT a flag on the existing single-completion path.
   `brainChat` stays untouched as the default answerer.
-- **Caps:** max ~8 loop iterations, ~6 tool calls per task, per-tool
-  timeout, and a total wall-clock budget; the 🧠-reaction ack pattern
-  extends with thread progress updates for long tasks. When a cap is about
-  to bite, the loop tells the model it is on its **final iteration**, so
-  the reply closes with a structured plan for the remainder rather than a
-  mid-task truncation.
+- **Caps:** max ~10 loop iterations, ~12 tool calls per task, per-tool
+  timeout, and a ~150s wall-clock budget (raised from 8/6/120s after the
+  first ICP run spent its whole budget on search and had none left to read
+  — SYSOI #592; sized for search-THEN-read with parallel reads). When a cap
+  is about to bite, the loop tells the model it is on its **final
+  iteration**, so the reply closes with a structured plan for the remainder
+  rather than a mid-task truncation.
+- **Threaded continuation** (SYSOI #594): a `[do]` reply in a thread where a
+  prior `[do]` ran resumes it — the prior loop's history rides along (tool
+  results stay in context, nothing re-fetched) and the budget resets. An
+  unfinished task ends by telling the human to reply `[do] continue`.
+  In-memory per-thread store (50 / 2h TTL), cleared on redeploy — durable
+  store is the follow-up if it matters.
 - **Grounding discipline carries over:** the final reply cites which tool
   produced which claim, same as source citations today.
 - **Composio execute sends `version: 'latest'`** (SYSOI #575) — REQUIRED
