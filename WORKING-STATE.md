@@ -17,12 +17,17 @@ significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
 
 ### 2026-07-11 — Sandy grows: cost-by-key + Render read tools (SYSOI #568–#574)
 
-- **`BRAIN_ANTHROPIC_API_KEY`** (SYSOI #568, promoted #571): Sandy's
-  completions (brainChat + brainAct) prefer a dedicated Anthropic key —
-  console cost-by-key shows Sandy as its own line. Inert until Brian adds
-  the key (dedicated Console workspace) to the SYSOI Environment Group.
+- **`BRAIN_ANTHROPIC_API_KEY` LIVE** (SYSOI #568, promoted #571; Brian set
+  the key same morning): Sandy's completions (brainChat + brainAct) run on
+  her own Anthropic key — console cost-by-key shows Sandy as her own line.
   Other brain modules (propose-edit/research/create-book) stay shared —
   one `keyScope` param each if they should move.
+- **Calendar read tools LIVE** (SYSOI #585, promoted #586): the fast-follow
+  landed — `calendar_list_calendars` + `calendar_find_events`, read-only,
+  shaped results from day one (attendees capped w/ count preserved,
+  descriptions trimmed, conference blobs dropped), all 9 calendars visible
+  incl. team members' and Sandbox Out of Office. Sandy's SAFE roster is now
+  EIGHT tools across five toolkits.
 - **Render read tools** (SYSOI #572, promoted #574): `render_list_services`
   / `render_list_deploys` / `render_get_deploy` joined the SAFE allowlist —
   the first post-launch TWO-SIDED add (Brian connected the toolkit; Sandy

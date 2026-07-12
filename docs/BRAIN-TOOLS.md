@@ -79,13 +79,13 @@ exactly three write paths today, all human-gated:
 
 | Tier | Behavior | Examples (v1, per the connected roster below) |
 |:--|:--|:--|
-| **SAFE** | Auto-run, read-only | Google Drive / Docs / Sheets **read** (briefs, run-of-shows, budgets, calendars), workbench data-shaping, GitHub **read** (action-scoped read-only in Composio, 2026-07-10), Render **read** (list services / list deploys / get deploy — 2026-07-11; **logs and env-var reads deliberately excluded**: both can carry secrets into model context, the standing rule for every toolkit add) |
+| **SAFE** | Auto-run, read-only | Google Drive / Docs / Sheets **read** (briefs, run-of-shows, budgets), Google Calendar **read** (list calendars / find events — 2026-07-11; shaped results, no writes), workbench data-shaping, GitHub **read** (action-scoped read-only in Composio, 2026-07-10), Render **read** (list services / list deploys / get deploy — 2026-07-11; **logs and env-var reads deliberately excluded**: both can carry secrets into model context, the standing rule for every toolkit add) |
 | **CONFIRM** | Runs only after an explicit human confirm (Slack button) or produces a **draft-only** artifact for human review | **Create-new-only** Docs/Sheets drafts in a designated Brain folder — the Docs equivalent of a draft PR; **never edit-in-place** — plus content draft PRs (via the existing propose paths) |
 | **FORBIDDEN** | Not in the allowlist at all — the brain cannot see these tools | **Email — read AND send (settled 2026-07-10)**, payments, social posting, messaging sends outside the bot's own reply path, **raw GitHub mutations via Composio** (see below), anything not explicitly allowlisted |
 
 **Connected roster (as of 2026-07-11, Brian):** GitHub, Google Drive,
-Google Docs, Google Sheets, Google Calendar (no allowlist tool yet —
-candidate fast-follow), Render (read tools live 2026-07-11) — deliberately
+Google Docs, Google Sheets, Google Calendar (read tools live 2026-07-11 —
+SYSOI #585/#586), Render (read tools live 2026-07-11) — deliberately
 small, grown gradually via the TWO-SIDED add: a connection in Composio
 plus a reviewed `SAFE_TOOLS` entry in SYSOI. Neither alone exposes
 anything — no dynamic discovery, ever. Research/scrape and CRM toolkits
