@@ -15,6 +15,30 @@ The session hooks read this file: `session-start.sh` prints the first `### `
 block at boot, and the per-message status line shows its heading. Start each
 significant session by prepending a `### YYYY-MM-DD — <headline>` block here.
 
+### 2026-07-12 — brainAct budget fix + threaded [do] continue (SYSOI #592–#594)
+
+- **Budget resized for search-THEN-read** (SYSOI #592, promoted #593): the
+  live "[do] What is the ICP for SYSOI?" run burned all 6 tool calls on
+  DISCOVERY (three Drive search phrasings + a code search + a scoped
+  re-search) and had none left to READ the candidates — then closed with a
+  plan addressed to "the next session turn," which doesn't exist for a
+  one-shot [do]. Caps 8→10 iters / 6→12 calls / 120→150s; system prompt now
+  says "one broad search, then read the top candidates as PARALLEL calls in
+  one turn"; FINAL TURN note routes an unfinished plan to the HUMAN.
+- **Threaded `[do] continue`** (SYSOI #594, promoted #593 — same promotion):
+  a [do] reply in a thread where a prior [do] ran RESUMES it — prior loop's
+  full message history rides along (tool results stay in context, nothing
+  re-fetched), tool budget resets. Composes with the budget fix: unfinished
+  tasks end with "reply [do] continue" and it works. Store: `actThreads`
+  map (thread_ts→history, 50 entries / 2h TTL — tighter than the
+  corrections map since histories carry tool results). Single-instance,
+  cleared on redeploy (same caveat as recentExchanges; durable store is the
+  follow-up if it matters).
+- **Op note:** the Claude Code review bot skipped #592–#594 — org overage
+  spend limit reached (was "paused/needs re-link" before). Raise the limit
+  / re-link at claude.ai/admin-settings/claude-code; Gemini's reviewer
+  retires 2026-07-17, so this is the path to keeping automated review.
+
 ### 2026-07-11 — Sandy grows: cost-by-key + Render read tools (SYSOI #568–#574)
 
 - **`BRAIN_ANTHROPIC_API_KEY` LIVE** (SYSOI #568, promoted #571; Brian set
