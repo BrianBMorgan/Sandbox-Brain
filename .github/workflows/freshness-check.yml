@@ -37,7 +37,7 @@ jobs:
       - name: Compare REPOS list against GET /api/repos
         run: |
           set -uo pipefail
-          BRAIN="https://sandbox-brain.onrender.com"
+          BRAIN="${BRAIN_URL:-https://brain.makemysandbox.com}"
 
           # Expected repo names: the URL basenames of the REPOS list in the
           # refresh script — parsed at runtime so this check can never drift

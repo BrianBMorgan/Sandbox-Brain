@@ -5,7 +5,7 @@
 # Re-indexes each repo into the shared GitNexus brain. On the known `git pull`
 # wedge (a dirty on-disk clone) it deletes the clone and re-clones fresh — the
 # exact recovery that previously had to be done by hand. Polls the REST job API
-# only (never the SSE /progress endpoint, which Render's edge kills). Stops and
+# only (never the SSE /progress endpoint — flaky under reverse proxies). Stops and
 # reports on OOM/gateway instead of hammering.
 #
 # This matters now that the index is PERSISTENT (/data): a wedged clone would
@@ -21,7 +21,8 @@
 # ---------------------------------------------------------------------------
 set -uo pipefail
 
-BRAIN="https://sandbox-brain.onrender.com"
+# Base URL — Coolify/DO cutover 2026-08-11. Override with BRAIN_URL if needed.
+BRAIN="${BRAIN_URL:-https://brain.makemysandbox.com}"
 
 # Bearer auth for the brain HAProxy API_KEY gate. Token is env-only; never
 # hardcode it. Export BRAIN_API_KEY in the environment that runs this script.
@@ -186,5 +187,5 @@ echo
 if $ok; then
   echo "RESULT: all repos refreshed OK"; exit 0
 else
-  echo "RESULT: FAILURE(S) above. A killed worker (code null), gateway, or timeout on a big repo is almost always the brain OOMing — give the heavy repo its own off-peak run (BRAIN_ONLY) or bump the Render plan. Do NOT set GITNEXUS_MAX_MEM_MB (it must stay 0 or LadybugDB can't mmap). Do not hammer-retry."; exit 1
+  echo "RESULT: FAILURE(S) above. A killed worker (code null), gateway, or timeout on a big repo is almost always the brain OOMing — give the heavy repo its own off-peak run (BRAIN_ONLY) or give the Coolify host more RAM. Do NOT set GITNEXUS_MAX_MEM_MB (it must stay 0 or LadybugDB can't mmap). Do not hammer-retry."; exit 1
 fi
